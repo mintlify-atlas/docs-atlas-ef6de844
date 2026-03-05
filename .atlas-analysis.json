@@ -1,0 +1,235 @@
+{
+  "projectType": "saas",
+  "projectName": "CAFH Platform",
+  "projectDescription": "A comprehensive spiritual organization management platform with CRM, content management, member engagement, and event coordination.",
+  "theme": "almond",
+  "primaryColor": "#1A428A",
+  "lightColor": "#6366f1",
+  "darkColor": "#0f172a",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Get Started",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/user-roles",
+              "concepts/multi-tenancy",
+              "concepts/data-model"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Member Guide",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "members/onboarding",
+              "members/profile-wizard",
+              "members/dashboard"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "members/content-library",
+              "members/events-activities",
+              "members/virtual-meetings",
+              "members/personalization"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Admin Guide",
+        "groups": [
+          {
+            "group": "Content Management",
+            "pages": [
+              "admin/cms-overview",
+              "admin/pages-editor",
+              "admin/blog-management",
+              "admin/media-library"
+            ]
+          },
+          {
+            "group": "Member Management",
+            "pages": [
+              "admin/crm",
+              "admin/contact-lists",
+              "admin/user-roles"
+            ]
+          },
+          {
+            "group": "Communications",
+            "pages": [
+              "admin/email-campaigns",
+              "admin/automation-workflows",
+              "admin/smtp-configuration"
+            ]
+          },
+          {
+            "group": "Events & Activities",
+            "pages": [
+              "admin/calendar-management",
+              "admin/zoom-integration",
+              "admin/feedback-system",
+              "admin/gamification"
+            ]
+          },
+          {
+            "group": "Analytics",
+            "pages": [
+              "admin/analytics-dashboard",
+              "admin/engagement-metrics",
+              "admin/content-performance"
+            ]
+          },
+          {
+            "group": "Settings",
+            "pages": [
+              "admin/site-settings",
+              "admin/journey-profiles",
+              "admin/change-log"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core APIs",
+            "pages": [
+              "api/authentication",
+              "api/storage-system",
+              "api/data-types"
+            ]
+          },
+          {
+            "group": "Content APIs",
+            "pages": [
+              "api/cms",
+              "api/media",
+              "api/pages"
+            ]
+          },
+          {
+            "group": "User & CRM APIs",
+            "pages": [
+              "api/users",
+              "api/contacts",
+              "api/lists"
+            ]
+          },
+          {
+            "group": "Communication APIs",
+            "pages": [
+              "api/email",
+              "api/campaigns",
+              "api/automations"
+            ]
+          },
+          {
+            "group": "Events APIs",
+            "pages": [
+              "api/calendar-events",
+              "api/meetings",
+              "api/activities"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "development/installation",
+              "development/environment-setup",
+              "development/running-locally"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/tech-stack",
+              "development/folder-structure",
+              "development/storage-system"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "development/build-process",
+              "development/deployment",
+              "development/email-server"
+            ]
+          },
+          {
+            "group": "Customization",
+            "pages": [
+              "development/theming",
+              "development/extending-types",
+              "development/adding-modules"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Role-based access control with multiple user levels",
+    "Content Management System with WYSIWYG editor",
+    "CRM with contact management and segmentation",
+    "Email campaign builder and automation workflows",
+    "Calendar and event management with Zoom integration",
+    "Media library with folder organization",
+    "Member profile wizard and personalization",
+    "Gamification with badges and participation tracking",
+    "Analytics and engagement metrics",
+    "Multi-page dynamic content system"
+  ],
+  "publicApiSurface": [
+    "db.auth.login()",
+    "db.auth.logout()",
+    "db.auth.getCurrentUser()",
+    "db.blog.getAll()",
+    "db.blog.create()",
+    "db.blog.update()",
+    "db.blog.delete()",
+    "db.events.getAll()",
+    "db.events.create()",
+    "db.events.update()",
+    "db.crm.contacts.getAll()",
+    "db.crm.contacts.create()",
+    "db.crm.contacts.update()",
+    "db.crm.lists.getAll()",
+    "db.crm.campaigns.getAll()",
+    "db.crm.campaigns.send()",
+    "db.automations.getAll()",
+    "db.automations.create()",
+    "db.media.getAll()",
+    "db.media.upload()",
+    "db.cms.pages.getAll()",
+    "db.cms.pages.getBySlug()",
+    "db.meetings.getAll()",
+    "db.activities.getAll()",
+    "db.feedback.getQuestions()",
+    "db.feedback.submitResponse()",
+    "db.badges.award()",
+    "db.participation.record()"
+  ]
+}
