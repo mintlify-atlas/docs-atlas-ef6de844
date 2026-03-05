@@ -1,0 +1,231 @@
+---
+title: "Environment Setup"
+description: "Configure environment variables and development settings"
+icon: "gear"
+---
+
+## Environment Variables
+
+CAFH Platform uses environment variables for configuration. Create a `.env` file in the project root to customize your instance.
+
+## Required Variables
+
+### SMTP Configuration
+
+Email functionality requires SMTP server configuration:
+
+```bash .env
+# SMTP Configuration for cPanel
+SMTP_HOST=mail.yourdomain.com
+SMTP_PORT=465
+SMTP_USER=crm@yourdomain.com
+SMTP_PASS=your_password
+SMTP_SECURE=true
+
+# Throttling Configuration
+MAX_EMAILS_PER_HOUR=80
+```
+
+<ParamField path="SMTP_HOST" type="string" required>
+  Your SMTP server hostname
+
+  Examples:
+  - cPanel: `mail.yourdomain.com`
+  - Gmail: `smtp.gmail.com`
+  - SendGrid: `smtp.sendgrid.net`
+  - Mailgun: `smtp.mailgun.org`
+</ParamField>
+
+<ParamField path="SMTP_PORT" type="number" required>
+  SMTP server port
+
+  Common ports:
+  - `465` - SSL/TLS (recommended)
+  - `587` - STARTTLS
+  - `25` - Unencrypted (not recommended)
+</ParamField>
+
+<ParamField path="SMTP_USER" type="string" required>
+  SMTP authentication username (usually an email address)
+</ParamField>
+
+<ParamField path="SMTP_PASS" type="string" required>
+  SMTP authentication password
+
+  <Warning>
+    Never commit your `.env` file to version control. Add it to `.gitignore`.
+  </Warning>
+</ParamField>
+
+<ParamField path="SMTP_SECURE" type="boolean" required>
+  Enable SSL/TLS encryption
+  
+  - `true` - Use SSL/TLS (port 465)
+  - `false` - Use STARTTLS (port 587)
+</ParamField>
+
+<ParamField path="MAX_EMAILS_PER_HOUR" type="number" default="80">
+  Maximum emails to send per hour (throttling)
+
+  Prevents hitting provider limits and maintains good sender reputation.
+</ParamField>
+
+## SMTP Provider Examples
+
+<Tabs>
+  <Tab title="cPanel">
+    ```bash .env
+    SMTP_HOST=mail.yourdomain.com
+    SMTP_PORT=465
+    SMTP_USER=crm@yourdomain.com
+    SMTP_PASS=your_password
+    SMTP_SECURE=true
+    MAX_EMAILS_PER_HOUR=80
+    ```
+  </Tab>
+
+  <Tab title="Gmail">
+    ```bash .env
+    SMTP_HOST=smtp.gmail.com
+    SMTP_PORT=587
+    SMTP_USER=your-email@gmail.com
+    SMTP_PASS=your-app-password
+    SMTP_SECURE=false
+    MAX_EMAILS_PER_HOUR=100
+    ```
+
+    <Note>
+      For Gmail, you need to generate an [App Password](https://support.google.com/accounts/answer/185833) instead of using your regular password.
+    </Note>
+  </Tab>
+
+  <Tab title="SendGrid">
+    ```bash .env
+    SMTP_HOST=smtp.sendgrid.net
+    SMTP_PORT=587
+    SMTP_USER=apikey
+    SMTP_PASS=your_sendgrid_api_key
+    SMTP_SECURE=false
+    MAX_EMAILS_PER_HOUR=100
+    ```
+  </Tab>
+
+  <Tab title="Mailgun">
+    ```bash .env
+    SMTP_HOST=smtp.mailgun.org
+    SMTP_PORT=587
+    SMTP_USER=postmaster@yourdomain.mailgun.org
+    SMTP_PASS=your_mailgun_password
+    SMTP_SECURE=false
+    MAX_EMAILS_PER_HOUR=100
+    ```
+  </Tab>
+</Tabs>
+
+## Development vs Production
+
+### Development (.env.local)
+
+```bash .env.local
+# Optional: Skip SMTP in local development
+# Email features will log to console instead
+NODE_ENV=development
+```
+
+### Production (.env.production)
+
+```bash .env.production
+# Full SMTP configuration required
+SMTP_HOST=mail.yourdomain.com
+SMTP_PORT=465
+SMTP_USER=crm@yourdomain.com
+SMTP_PASS=your_password
+SMTP_SECURE=true
+MAX_EMAILS_PER_HOUR=80
+
+NODE_ENV=production
+```
+
+## Verification
+
+Test your SMTP configuration:
+
+<Steps>
+  <Step title="Start the server">
+    ```bash
+    npm run dev
+    ```
+  </Step>
+
+  <Step title="Login as admin">
+    Navigate to `http://localhost:3000` and login with admin credentials
+  </Step>
+
+  <Step title="Send a test email">
+    Go to **Admin > Campaigns** and create a test campaign with your email address
+  </Step>
+
+  <Step title="Check the queue">
+    The email queue processes every 30 seconds. Check the console for:
+    ```
+    [Queue Worker] Processing 1 emails...
+    ```
+  </Step>
+</Steps>
+
+## Environment Variable Loading
+
+The platform uses `dotenv` to load environment variables from `.env`:
+
+```typescript server.ts
+import dotenv from 'dotenv';
+dotenv.config();
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "localhost",
+  port: parseInt(process.env.SMTP_PORT || "465"),
+  secure: process.env.SMTP_SECURE === "true",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+```
+
+## Troubleshooting
+
+<Accordion title="SMTP connection timeout">
+  - Verify your SMTP host and port are correct
+  - Check if your firewall allows outbound connections on the SMTP port
+  - Some ISPs block port 25; use port 587 or 465 instead
+</Accordion>
+
+<Accordion title="Authentication failed">
+  - Double-check your username and password
+  - For Gmail, ensure you're using an App Password, not your regular password
+  - For other providers, verify your credentials in their dashboard
+</Accordion>
+
+<Accordion title="Emails not sending">
+  - Check the email queue status at `/api/email/status`
+  - Review the console for error messages
+  - Verify you haven't exceeded `MAX_EMAILS_PER_HOUR`
+  - Check the `data.json` file for queued emails
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Running Locally" icon="play" href="/development/running-locally">
+    Learn about development workflows
+  </Card>
+  <Card title="Email Server" icon="envelope" href="/development/email-server">
+    Understand the email queue system
+  </Card>
+  <Card title="SMTP Configuration" icon="server" href="/admin/smtp-configuration">
+    Admin guide for SMTP setup
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/development/deployment">
+    Deploy to production
+  </Card>
+</CardGroup>

@@ -1,0 +1,495 @@
+---
+title: Journey Profiles
+description: Configure user journey wizard, profile types, splash screens, and personalization system
+icon: compass
+---
+
+The Journey Profiles module allows you to create personalized onboarding experiences through a wizard questionnaire that assigns members to profile types.
+
+## System Overview
+
+The journey system consists of three main components:
+
+<Steps>
+  <Step title="Wizard Questions">
+    Multi-step questionnaire presented to new members during registration
+  </Step>
+  <Step title="Profile Types">
+    User archetypes (e.g., Contemplativo, Comunitario) with associated content tags
+  </Step>
+  <Step title="Splash Screen">
+    Customizable welcome screen shown after wizard completion
+  </Step>
+</Steps>
+
+## Wizard Configuration
+
+### WizardConfig Schema
+
+```typescript
+interface WizardConfig {
+  splash: WizardSplashConfig;
+  defaultCrmListId?: string;          // Auto-add to CRM list
+  welcomeAutomationId?: string;       // Trigger automation flow
+  isActive: boolean;                  // Enable/disable wizard
+}
+```
+
+### Storage Location
+
+```typescript
+const LS_WIZARD_CONFIG = 'cafh_wizard_config_v1';
+const LS_QUESTIONS = 'cafh_journey_questions_v1';
+const LS_PROFILES = 'cafh_journey_profiles_v1';
+```
+
+## Wizard Questions
+
+### Question Schema
+
+```typescript
+interface WizardQuestion {
+  id: string;
+  order: number;                      // Display sequence (1, 2, 3...)
+  question: string;                   // Question text
+  subtitle?: string;                  // Optional clarification
+  options: WizardOptionEditable[];
+  isActive: boolean;                  // Enable/disable question
+}
+
+interface WizardOptionEditable {
+  id: string;
+  label: string;                      // Display text
+  value: string;                      // Internal value
+  profileTags: string[];              // Tags to assign if selected
+}
+```
+
+### Default Questions
+
+The system ships with three pre-configured questions:
+
+```typescript
+const DEFAULT_QUESTIONS: WizardQuestion[] = [
+  {
+    id: 'q1',
+    order: 1,
+    isActive: true,
+    question: '¿Qué estás buscando en este momento de tu vida?',
+    options: [
+      { 
+        id: 'q1o1', 
+        label: 'Paz mental y reducción de estrés', 
+        value: 'peace', 
+        profileTags: ['Meditación', 'Bienestar'] 
+      },
+      { 
+        id: 'q1o2', 
+        label: 'Sentido y propósito', 
+        value: 'purpose', 
+        profileTags: ['Mística', 'Filosofía'] 
+      },
+      { 
+        id: 'q1o3', 
+        label: 'Comunidad y conexión', 
+        value: 'community', 
+        profileTags: ['Grupos', 'Voluntariado'] 
+      },
+    ]
+  },
+  // ... 2 more questions
+];
+```
+
+### Creating Questions
+
+<CodeGroup>
+```typescript Admin UI
+const saveQuestion = (q: WizardQuestion) => {
+  const exists = questions.find(x => x.id === q.id);
+  const updated = exists 
+    ? questions.map(x => x.id === q.id ? q : x) 
+    : [...questions, q];
+  
+  localStorage.setItem(LS_QUESTIONS, JSON.stringify(updated));
+};
+```
+
+```typescript Create New
+const newQuestion: WizardQuestion = {
+  id: `q${Date.now()}`,
+  order: questions.length + 1,
+  question: '¿Cuánto tiempo puedes dedicar?',
+  isActive: true,
+  options: [
+    {
+      id: 'q2o1',
+      label: 'Unos minutos al día',
+      value: 'short',
+      profileTags: ['Lecturas Breves', 'Podcast']
+    }
+  ]
+};
+```
+</CodeGroup>
+
+### Question Editor UI
+
+The admin panel includes a modal editor with:
+
+- **Question text input**: Main question display
+- **Option management**: Add/remove multiple choice options
+- **Tag assignment**: Select from available tags or add custom tags
+- **Tag selector**: Visual button grid with available content tags
+- **Manual tag input**: Comma-separated tag entry
+
+**Available tags auto-populate from:**
+```typescript
+const mTags = db.media.getAll().flatMap(m => m.tags || []);
+const cTags = db.content.getAll().flatMap(c => c.tags || []);
+const defaultTags = [
+  'Meditación', 'Bienestar', 'Mística', 'Filosofía', 
+  'Grupos', 'Voluntariado', 'Lecturas Breves', 'Podcast'
+];
+const availableTags = Array.from(new Set([...mTags, ...cTags, ...defaultTags]));
+```
+
+## Profile Types
+
+### ProfileType Schema
+
+```typescript
+interface ProfileType {
+  id: string;
+  name: string;                   // Display name (e.g., "Contemplativo")
+  description: string;            // Brief description
+  emoji: string;                  // Visual identifier (🌿, 🤝, 📚)
+  color: string;                  // Hex color for UI theming
+  contentTags: string[];          // Tags for content matching
+  kitItems: ProfileKitItem[];     // Welcome kit resources
+  crmTag: string;                 // Auto-applied CRM tag
+  crmListId?: string;             // Auto-add to CRM list
+}
+
+interface ProfileKitItem {
+  id: string;
+  title: string;
+  type: 'PDF' | 'Audio' | 'Video' | 'Article' | 'Link';
+  catalogItemId?: string;         // Reference to ContentCatalogItem
+  url?: string;                   // External URL
+  description?: string;
+}
+```
+
+### Default Profiles
+
+```typescript
+const DEFAULT_PROFILES: ProfileType[] = [
+  {
+    id: 'p1',
+    name: 'Contemplativo',
+    description: 'Busca paz interior y práctica meditativa.',
+    emoji: '🌿',
+    color: '#4f46e5',
+    contentTags: ['Meditación', 'Bienestar', 'Podcast'],
+    kitItems: [],
+    crmTag: 'perfil-contemplativo'
+  },
+  {
+    id: 'p2',
+    name: 'Comunitario',
+    description: 'Busca conexión, grupos y voluntariado.',
+    emoji: '🤝',
+    color: '#059669',
+    contentTags: ['Grupos', 'Voluntariado', 'Diálogos'],
+    kitItems: [],
+    crmTag: 'perfil-comunitario'
+  },
+  // ... 2 more profiles
+];
+```
+
+### Profile Assignment Logic
+
+When a user completes the wizard:
+
+1. **Collect answers**: All selected options and their `profileTags`
+2. **Aggregate tags**: Combine all tags from selected options
+3. **Match to profile**: Find profile with most overlapping `contentTags`
+4. **Create UserWizardProfile**: Store assignment
+5. **Apply CRM tag**: Auto-tag contact in CRM
+6. **Add to list**: Optionally add to `crmListId`
+7. **Trigger automation**: Run `welcomeAutomationId` if configured
+
+```typescript
+interface UserWizardProfile {
+  userId: string;
+  profileTypeId: string;
+  profileTypeName: string;
+  wizardAnswers: Record<string, string>;  // questionId -> optionValue
+  derivedTags: string[];                  // All collected tags
+  completedAt: string;
+}
+```
+
+### Content Personalization
+
+Profile tags drive content recommendations:
+
+```typescript
+// Member's profile tags
+const memberProfile = getUserWizardProfile(userId);
+const memberTags = memberProfile.derivedTags;
+
+// Find matching content
+const recommendedContent = db.content.getAll()
+  .filter(item => 
+    item.tags.some(tag => memberTags.includes(tag))
+  )
+  .sort((a, b) => {
+    // Sort by tag overlap count
+    const aOverlap = a.tags.filter(t => memberTags.includes(t)).length;
+    const bOverlap = b.tags.filter(t => memberTags.includes(t)).length;
+    return bOverlap - aOverlap;
+  });
+```
+
+## Splash Screen Configuration
+
+### WizardSplashConfig Schema
+
+```typescript
+interface WizardSplashConfig {
+  title: string;              // Main welcome message
+  message: string;            // Subtitle/description
+  bgType: 'color' | 'image' | 'video';
+  bgColor: string;            // Used when bgType === 'color'
+  bgImageUrl?: string;        // Used when bgType === 'image'
+  bgVideoUrl?: string;        // Used when bgType === 'video' (MP4)
+  textColor: string;          // Hex color for text
+  durationSeconds: number;    // Display time (2-10 seconds)
+  redirectUrl: string;        // Where to redirect after
+}
+```
+
+### Default Splash
+
+```typescript
+const DEFAULT_SPLASH: WizardSplashConfig = {
+  title: '¡Bienvenido a tu camino!',
+  message: 'Tu espacio personalizado está listo. Estamos preparando todo para ti...',
+  bgColor: '#1e2f6b',
+  bgType: 'color',
+  bgImageUrl: '',
+  bgVideoUrl: '',
+  textColor: '#ffffff',
+  durationSeconds: 4,
+  redirectUrl: '/member/dashboard',
+};
+```
+
+### Splash Background Types
+
+<Tabs>
+  <Tab title="Color">
+    Solid color background with gradient overlay:
+    ```tsx
+    <div style={{ backgroundColor: splashConfig.bgColor }}>
+      <div className="absolute inset-0 bg-black/20" />
+    </div>
+    ```
+  </Tab>
+  
+  <Tab title="Image">
+    Full-screen background image:
+    ```tsx
+    <div style={{
+      backgroundImage: `url(${splashConfig.bgImageUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center'
+    }} />
+    ```
+    Recommended: 1920×1080px, JPG or PNG
+  </Tab>
+  
+  <Tab title="Video">
+    Looping video background (MP4):
+    ```tsx
+    <video autoPlay loop muted playsInline 
+      className="absolute inset-0 w-full h-full object-cover">
+      <source src={splashConfig.bgVideoUrl} type="video/mp4" />
+    </video>
+    ```
+    Format: MP4, no audio, optimized for web
+  </Tab>
+</Tabs>
+
+### Live Preview
+
+The admin UI includes a live preview panel:
+
+```tsx
+<div
+  className="rounded-2xl overflow-hidden aspect-video flex items-center justify-center p-8"
+  style={{
+    backgroundColor: splashConfig.bgType === 'color' ? splashConfig.bgColor : '#000',
+    backgroundImage: splashConfig.bgType === 'image' ? `url(${splashConfig.bgImageUrl})` : undefined,
+    color: splashConfig.textColor
+  }}
+>
+  <div className="relative z-10 text-center">
+    <h4 className="text-xl font-bold mb-2">{splashConfig.title}</h4>
+    <p className="text-sm opacity-80">{splashConfig.message}</p>
+    <div className="mt-6 flex items-center justify-center gap-2">
+      <span>Redirigiendo en {splashConfig.durationSeconds}s</span>
+      <span className="w-5 h-5 rounded-full border-2 border-current animate-spin border-t-transparent" />
+    </div>
+  </div>
+</div>
+```
+
+## CRM Integration
+
+### Auto-Tagging
+
+When profile assigned:
+
+```typescript
+// Apply CRM tag from profile
+const contact = db.crm.getById(userId);
+contact.tags = [...(contact.tags || []), profile.crmTag];
+db.crm.save(contact);
+```
+
+### List Assignment
+
+Optionally add to specific list:
+
+```typescript
+if (profile.crmListId) {
+  contact.listIds = [...(contact.listIds || []), profile.crmListId];
+  db.crm.save(contact);
+}
+```
+
+### Welcome Automation
+
+Trigger onboarding automation:
+
+```typescript
+if (wizardConfig.welcomeAutomationId) {
+  await db.automations.runForContact(
+    wizardConfig.welcomeAutomationId,
+    contact
+  );
+}
+```
+
+## Admin UI Components
+
+### Tab Navigation
+
+```typescript
+type JTab = 'questions' | 'profiles' | 'splash';
+
+const tabs: [JTab, string][] = [
+  ['questions', '📋 Preguntas del Wizard'],
+  ['profiles', '🧬 Tipos de Perfil'],
+  ['splash', '🎬 Splash Screen']
+];
+```
+
+### Question List View
+
+```tsx
+{questions.sort((a, b) => a.order - b.order).map(q => (
+  <div key={q.id} className="bg-white rounded-2xl border p-6">
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase">Pregunta {q.order}</p>
+        <h4 className="font-bold text-slate-800 text-lg">{q.question}</h4>
+        <div className="flex flex-wrap gap-2 mt-3">
+          {q.options.map(o => (
+            <div key={o.id} className="bg-slate-50 border rounded-xl px-3 py-1.5 text-xs">
+              <span className="font-bold">{o.label}</span>
+              <span className="text-slate-400 ml-2">→ {o.profileTags.join(', ')}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => setEditQ(q)}><Edit size={16} /></button>
+        <button onClick={() => deleteQuestion(q.id)}><Trash2 size={16} /></button>
+      </div>
+    </div>
+  </div>
+))}
+```
+
+### Profile Card View
+
+```tsx
+{profiles.map(p => (
+  <div key={p.id} className="bg-white rounded-2xl border p-6">
+    <div className="flex items-start justify-between">
+      <div className="flex items-center gap-3">
+        <div 
+          className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
+          style={{ background: p.color + '20' }}
+        >
+          {p.emoji}
+        </div>
+        <div>
+          <h4 className="font-bold" style={{ color: p.color }}>{p.name}</h4>
+          <p className="text-xs text-slate-500">{p.description}</p>
+        </div>
+      </div>
+    </div>
+    <div className="mt-4 flex flex-wrap gap-1.5">
+      {p.contentTags.map(t => (
+        <span key={t} className="text-xs font-bold px-2 py-1 rounded-lg bg-slate-100">
+          {t}
+        </span>
+      ))}
+    </div>
+    <p className="text-xs text-slate-400 mt-3">
+      CRM Tag: <strong>{p.crmTag}</strong>
+    </p>
+  </div>
+))}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep Questions Simple">
+    Limit wizard to 3-5 questions max. Long wizards cause drop-off. Each question should take < 5 seconds to answer.
+  </Accordion>
+  
+  <Accordion title="Use Descriptive Tags">
+    Profile tags should match content tags exactly. Use consistent capitalization and spelling (e.g., "Meditación" not "meditacion").
+  </Accordion>
+  
+  <Accordion title="Test Profile Matching">
+    After creating profiles, test the wizard flow with different answer combinations to verify correct profile assignment.
+  </Accordion>
+  
+  <Accordion title="Splash Duration">
+    Keep splash screen 3-5 seconds. Longer feels slow, shorter prevents animation from completing.
+  </Accordion>
+  
+  <Accordion title="CRM Tag Naming">
+    Use consistent naming: `perfil-{name}` (lowercase, hyphenated). This makes filtering and segmentation easier.
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Site Settings" icon="settings" href="/admin/site-settings">
+    Configure site-wide settings and branding
+  </Card>
+  <Card title="CRM & Contacts" icon="users" href="/crm/contact-management">
+    Manage contacts, lists, and tags
+  </Card>
+</CardGroup>

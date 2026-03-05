@@ -1,0 +1,448 @@
+---
+title: "Extending Types"
+description: "Add new TypeScript interfaces and data structures"
+icon: "plus"
+---
+
+## Type System Overview
+
+All data structures are defined in `types.ts` with 50+ TypeScript interfaces. This file is the single source of truth for the platform's data model.
+
+## Adding a New Type
+
+<Steps>
+  <Step title="Define the interface in types.ts">
+    ```typescript types.ts
+    export interface Resource {
+      id: string;
+      title: string;
+      description: string;
+      type: 'PDF' | 'Video' | 'Audio' | 'Link';
+      url: string;
+      tags: string[];
+      uploadedAt: string;
+      downloadCount: number;
+    }
+    ```
+  </Step>
+
+  <Step title="Add storage key in storage.ts">
+    ```typescript storage.ts
+    const KEYS = {
+      // Existing keys...
+      RESOURCES: 'cafh_resources_v1',
+    };
+    ```
+  </Step>
+
+  <Step title="Create CRUD methods in storage.ts">
+    ```typescript storage.ts
+    let resources: Resource[] = [];
+
+    export const db = {
+      // Existing modules...
+      
+      resources: {
+        getAll: (): Resource[] => resources,
+        
+        getById: (id: string): Resource | undefined =>
+          resources.find(r => r.id === id),
+        
+        create: (resource: Resource): void => {
+          resources.push(resource);
+          localStorage.setItem(KEYS.RESOURCES, JSON.stringify(resources));
+        },
+        
+        update: (id: string, updates: Partial<Resource>): void => {
+          const index = resources.findIndex(r => r.id === id);
+          if (index !== -1) {
+            resources[index] = { ...resources[index], ...updates };
+            localStorage.setItem(KEYS.RESOURCES, JSON.stringify(resources));
+          }
+        },
+        
+        delete: (id: string): void => {
+          resources = resources.filter(r => r.id !== id);
+          localStorage.setItem(KEYS.RESOURCES, JSON.stringify(resources));
+        },
+        
+        search: (query: string): Resource[] =>
+          resources.filter(r =>
+            r.title.toLowerCase().includes(query.toLowerCase()) ||
+            r.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()))
+          ),
+      },
+    };
+    ```
+  </Step>
+
+  <Step title="Initialize in db.init()">
+    ```typescript storage.ts
+    export const db = {
+      init: () => {
+        // Existing initializations...
+        resources = initStorage(KEYS.RESOURCES, []);
+      },
+    };
+    ```
+  </Step>
+
+  <Step title="Use in components">
+    ```tsx components/ResourceLibrary.tsx
+    import { Resource } from '../types';
+    import { db } from '../storage';
+
+    const ResourceLibrary: React.FC = () => {
+      const [resources, setResources] = useState<Resource[]>([]);
+
+      useEffect(() => {
+        setResources(db.resources.getAll());
+      }, []);
+
+      const handleCreate = () => {
+        const newResource: Resource = {
+          id: Date.now().toString(),
+          title: 'New Resource',
+          description: '',
+          type: 'PDF',
+          url: '',
+          tags: [],
+          uploadedAt: new Date().toISOString(),
+          downloadCount: 0,
+        };
+        db.resources.create(newResource);
+        setResources(db.resources.getAll());
+      };
+
+      return (
+        <div>
+          <button onClick={handleCreate}>Add Resource</button>
+          {resources.map(resource => (
+            <div key={resource.id}>{resource.title}</div>
+          ))}
+        </div>
+      );
+    };
+    ```
+  </Step>
+</Steps>
+
+## Extending Existing Types
+
+### Adding Optional Fields
+
+```typescript types.ts
+export interface Contact {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  // ... existing fields
+  
+  // New optional fields
+  company?: string;
+  jobTitle?: string;
+  linkedinUrl?: string;
+}
+```
+
+<Info>
+  Optional fields (with `?`) won't break existing data. Existing contacts will have `undefined` for new fields.
+</Info>
+
+### Adding Required Fields
+
+```typescript types.ts
+export interface BlogPost {
+  // ... existing fields
+  
+  // New required field
+  featured: boolean;  // Required!
+}
+```
+
+<Warning>
+  Adding required fields breaks existing data. You must migrate:
+  
+  ```typescript
+  // Migration function
+  function migrateBlogPosts() {
+    const posts = db.blog.getAll();
+    posts.forEach(post => {
+      db.blog.update(post.id, { featured: false });
+    });
+  }
+  ```
+</Warning>
+
+## Enum Types
+
+For fields with fixed options:
+
+```typescript types.ts
+export enum ResourceType {
+  PDF = 'PDF',
+  VIDEO = 'Video',
+  AUDIO = 'Audio',
+  LINK = 'Link',
+}
+
+export interface Resource {
+  type: ResourceType;  // Type-safe!
+}
+
+// Usage
+const resource: Resource = {
+  type: ResourceType.PDF,  // Autocomplete works!
+};
+```
+
+## Union Types
+
+For status fields:
+
+```typescript types.ts
+export type CampaignStatus = 'Draft' | 'Scheduled' | 'Sent' | 'Archived';
+
+export interface Campaign {
+  status: CampaignStatus;
+}
+
+// TypeScript ensures only valid statuses
+campaign.status = 'Sent';      // ✓ OK
+campaign.status = 'Invalid';   // ✗ Type error
+```
+
+## Nested Objects
+
+For complex data structures:
+
+```typescript types.ts
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+export interface Contact {
+  // ... other fields
+  address?: Address;  // Nested object
+}
+
+// Usage
+const contact: Contact = {
+  // ...
+  address: {
+    street: '123 Main St',
+    city: 'Santiago',
+    state: 'RM',
+    zipCode: '8320000',
+    country: 'Chile',
+  },
+};
+```
+
+## Array Types
+
+```typescript types.ts
+export interface Event {
+  // ... other fields
+  speakers: Speaker[];  // Array of objects
+  tags: string[];       // Array of strings
+}
+
+export interface Speaker {
+  name: string;
+  bio: string;
+  photoUrl: string;
+}
+```
+
+## Generic Types
+
+For reusable patterns:
+
+```typescript types.ts
+export interface PaginatedResponse<T> {
+  data: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+// Usage
+type ContactsPage = PaginatedResponse<Contact>;
+type EventsPage = PaginatedResponse<CalendarEvent>;
+```
+
+## Utility Types
+
+TypeScript provides built-in utilities:
+
+```typescript
+// Make all fields optional
+type PartialContact = Partial<Contact>;
+
+// Pick specific fields
+type ContactSummary = Pick<Contact, 'id' | 'name' | 'email'>;
+
+// Omit fields
+type NewContact = Omit<Contact, 'id' | 'createdAt'>;
+
+// Make all fields required
+type RequiredContact = Required<Contact>;
+```
+
+## Type Guards
+
+For runtime type checking:
+
+```typescript
+function isContact(obj: any): obj is Contact {
+  return (
+    typeof obj === 'object' &&
+    typeof obj.id === 'string' &&
+    typeof obj.email === 'string'
+  );
+}
+
+// Usage
+const data = JSON.parse(localStorage.getItem('contact') || '{}');
+if (isContact(data)) {
+  console.log(data.email);  // TypeScript knows it's a Contact
+}
+```
+
+## Real Example: Adding a Newsletter Type
+
+<Steps>
+  <Step title="Define the type">
+    ```typescript types.ts
+    export interface Newsletter {
+      id: string;
+      title: string;
+      subject: string;
+      content: string;
+      status: 'Draft' | 'Scheduled' | 'Sent';
+      scheduledAt?: string;
+      sentAt?: string;
+      recipientListId: string;
+      metrics: {
+        sent: number;
+        opened: number;
+        clicked: number;
+      };
+      createdAt: string;
+    }
+    ```
+  </Step>
+
+  <Step title="Add storage">
+    ```typescript storage.ts
+    const KEYS = {
+      NEWSLETTERS: 'cafh_newsletters_v1',
+    };
+
+    let newsletters: Newsletter[] = [];
+
+    export const db = {
+      newsletters: {
+        getAll: () => newsletters,
+        create: (newsletter: Newsletter) => {
+          newsletters.push(newsletter);
+          localStorage.setItem(KEYS.NEWSLETTERS, JSON.stringify(newsletters));
+        },
+        // ... other methods
+      },
+      init: () => {
+        newsletters = initStorage(KEYS.NEWSLETTERS, []);
+      },
+    };
+    ```
+  </Step>
+
+  <Step title="Create UI component">
+    ```tsx components/NewsletterEditor.tsx
+    import { Newsletter } from '../types';
+    import { db } from '../storage';
+
+    const NewsletterEditor: React.FC = () => {
+      const [newsletters, setNewsletters] = useState<Newsletter[]>([]);
+
+      useEffect(() => {
+        setNewsletters(db.newsletters.getAll());
+      }, []);
+
+      const handleCreate = () => {
+        const newsletter: Newsletter = {
+          id: Date.now().toString(),
+          title: 'Untitled Newsletter',
+          subject: '',
+          content: '',
+          status: 'Draft',
+          recipientListId: '',
+          metrics: { sent: 0, opened: 0, clicked: 0 },
+          createdAt: new Date().toISOString(),
+        };
+        db.newsletters.create(newsletter);
+        setNewsletters(db.newsletters.getAll());
+      };
+
+      return (
+        <div>
+          <button onClick={handleCreate}>New Newsletter</button>
+          {newsletters.map(n => (
+            <div key={n.id}>
+              <h3>{n.title}</h3>
+              <span>Status: {n.status}</span>
+            </div>
+          ))}
+        </div>
+      );
+    };
+    ```
+  </Step>
+</Steps>
+
+## Best Practices
+
+<Accordion title="Use descriptive names">
+  `UserProfile` is better than `UP`. TypeScript supports long names; use them.
+</Accordion>
+
+<Accordion title="Document complex types">
+  ```typescript
+  /**
+   * Represents a scheduled email campaign
+   * @property status - Current state of the campaign
+   * @property metrics - Engagement statistics
+   */
+  export interface Campaign {
+    // ...
+  }
+  ```
+</Accordion>
+
+<Accordion title="Avoid 'any' type">
+  Use `unknown` for truly unknown data, then narrow with type guards.
+</Accordion>
+
+<Accordion title="Export all types">
+  Every interface in `types.ts` should be exported for reuse across the codebase.
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Adding Modules" icon="puzzle" href="/development/adding-modules">
+    Build complete features
+  </Card>
+  <Card title="Data Model" icon="diagram" href="/concepts/data-model">
+    Explore existing types
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/data-types">
+    Complete type reference
+  </Card>
+</CardGroup>

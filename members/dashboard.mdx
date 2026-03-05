@@ -1,0 +1,320 @@
+---
+title: 'Member Dashboard Overview'
+description: 'Navigate your personalized member dashboard and understand all available features'
+icon: 'gauge-high'
+---
+
+# Member Dashboard
+
+Your member dashboard is the central hub for all platform activities. It provides a personalized view of content, events, and community resources.
+
+## Dashboard Layout
+
+The dashboard is organized into three main sections accessible via tabs:
+
+### Tab Navigation
+
+<CardGroup cols={3}>
+  <Card title="Resumen" icon="grid-2">
+    Main overview with personalized content and upcoming events
+  </Card>
+  <Card title="Historial" icon="clock">
+    Complete history of your activities and interactions
+  </Card>
+  <Card title="Mi Perfil" icon="user">
+    Profile editor for personal information and preferences
+  </Card>
+</CardGroup>
+
+## Header Section
+
+The dashboard header is a customizable, immersive component that displays:
+
+### Your Identity
+
+- **Profile Avatar**: White circular icon with your initial
+- **Greeting**: "Hola, [Your First Name]"
+- **Profile Badge**: Your wizard profile type (e.g., "Miembro", "Explorador")
+- **Member Since**: Join date in Spanish format (e.g., "octubre 2023")
+- **Online Indicator**: Green status dot
+
+### Cover Image Customization
+
+The header includes a customizable background cover image:
+
+<Steps>
+  <Step title="Hover Over Header">
+    Move your mouse over the header area to reveal the edit button.
+  </Step>
+  
+  <Step title="Click Camera Icon">
+    Click the image icon in the top-right to cycle through preset backgrounds.
+  </Step>
+  
+  <Step title="Background Rotates">
+    Each click advances to the next beautiful landscape image from the preset collection.
+  </Step>
+</Steps>
+
+<Tip>
+The cover image is preserved in your user profile and persists across sessions.
+</Tip>
+
+### Action Buttons
+
+<AccordionGroup>
+  <Accordion title="Donar (Donate)" icon="heart">
+    Opens the external donation platform in a new tab:
+    ```
+    https://contribuciones.cafh.cl/login
+    ```
+    Styled with the `cafh-peach` theme color.
+  </Accordion>
+  
+  <Accordion title="Ajustes (Settings)" icon="gear">
+    Switches to the **Mi Perfil** tab for editing your profile information.
+  </Accordion>
+  
+  <Accordion title="Salir (Logout)" icon="right-from-bracket">
+    Logs out by calling `db.auth.logout()` and redirects to `/login`.
+  </Accordion>
+</AccordionGroup>
+
+## Resumen Tab (Main View)
+
+The main dashboard view uses a two-column layout:
+
+### Left Column: Main Content (8/12 width)
+
+#### Tu Biblioteca Personalizada
+
+This is the heart of content personalization:
+
+- **Purpose**: Displays content matched to your interests
+- **Content Sources**: 
+  - Articles from the content database
+  - Media assets (documents, videos, audio)
+- **Filtering Logic**: 
+  ```typescript
+  items.filter(item => 
+    item.tags.some(tag => userInterests.includes(tag))
+  )
+  ```
+- **Limit**: Top 6 recommended items
+
+**Content Card Information:**
+
+- Type badge (Article, Resource, Video, Audio)
+- Title and brief description
+- Icon based on content type:
+  - 📄 Article (Feather icon, blue background)
+  - 📥 Resource/Document (Download icon, green background)
+  - 🎵 Audio (Play icon, purple background)
+  - 🎬 Video (Video icon, red background)
+
+<Note>
+If no matching content is found, you'll see a message prompting you to complete the Journey Wizard or add tags to your profile.
+</Note>
+
+#### Content Viewer Modal
+
+Clicking any content card opens a full-screen modal viewer:
+
+- **Articles**: Display with styled layout and reading analytics
+- **Videos**: Embedded video player with autoplay
+- **Audio**: Clean audio player with play controls
+- **Documents**: Embedded iframe for PDF viewing
+
+**Analytics Tracking:**
+
+When you open content, the system automatically:
+
+```typescript
+db.analytics.trackConsumption({
+  assetId: item.id,
+  assetName: item.title,
+  assetType: item.type,
+  tags: item.tags
+});
+```
+
+This builds your activity history and improves future recommendations.
+
+### Right Column: Sidebar (4/12 width)
+
+#### Sala Virtual (Virtual Room) Widget
+
+The Zoom widget shows your next upcoming online event:
+
+**When an Event Exists:**
+
+- Event title and status badge
+- Date and time (with calendar/clock icons)
+- Live indicator if event is currently happening
+- "Unirse a la sesión" button to join
+
+**When No Events:**
+
+- Calendar icon with message
+- "Sin sesiones virtuales próximas"
+- Link to view full calendar
+
+<Card title="Learn More" icon="video" href="/members/virtual-meetings">
+  See the complete guide to joining and participating in virtual meetings.
+</Card>
+
+#### Novedades para ti (News for You)
+
+Displays the 2 most recent blog posts:
+
+- Thumbnail image (64x64px, rounded)
+- Post title (truncated to 2 lines)
+- Date and author metadata
+- Hover effect with scale animation
+
+**Data Source:**
+
+```typescript
+const recentPosts = db.blog.getAll().slice(0, 2);
+```
+
+## Historial Tab
+
+Your complete activity timeline showing:
+
+### Activity Types
+
+- **Events**: Attended sessions and meetings
+- **Reading**: Articles and resources consumed
+- **Meditation**: Meditation sessions logged
+- **Donations**: Contribution history
+
+### Timeline Display
+
+Activities are shown in a vertical timeline with:
+
+- **Timeline Rail**: Visual line connecting activities
+- **Activity Nodes**: Circular markers for each entry
+- **Activity Cards**: 
+  - Title and description
+  - Activity type and date
+  - Status badge ("Completado", "Registrado")
+
+**Data Structure:**
+
+```typescript
+interface UserActivity {
+  id: string;
+  type: 'Event' | 'Reading' | 'Donation' | 'Meditation';
+  title: string;
+  date: string;
+  status: 'Completed' | 'Registered';
+}
+```
+
+<Tip>
+Your activity history is automatically populated as you interact with content and attend events. No manual logging required!
+</Tip>
+
+## Mi Perfil Tab (Profile Editor)
+
+Edit your personal information with a clean form interface:
+
+### Editable Fields
+
+<AccordionGroup>
+  <Accordion title="Nombre Completo" icon="signature">
+    Your full display name shown throughout the platform.
+  </Accordion>
+  
+  <Accordion title="Teléfono Móvil" icon="phone">
+    Contact phone number (format: +56 9 1234 5678)
+  </Accordion>
+  
+  <Accordion title="Ciudad de Residencia" icon="location-dot">
+    Your current city (e.g., "Santiago", "Buenos Aires")
+  </Accordion>
+</AccordionGroup>
+
+### Save Process
+
+<Steps>
+  <Step title="Edit Fields">
+    Update any of the editable fields with your new information.
+  </Step>
+  
+  <Step title="Click Save">
+    Click the "Guardar Cambios" button (with Save icon).
+  </Step>
+  
+  <Step title="Auto-Update">
+    The system updates your profile via:
+    ```typescript
+    db.auth.updateCurrentUser({
+      name: profileForm.name,
+      phone: profileForm.phone,
+      city: profileForm.city
+    });
+    ```
+  </Step>
+  
+  <Step title="Instant Reflection">
+    Changes are immediately reflected throughout the platform, including the dashboard header.
+  </Step>
+</Steps>
+
+<Warning>
+Profile changes are saved to browser storage. If you're using multiple devices, update your profile on each one for consistency.
+</Warning>
+
+## Responsive Design
+
+The dashboard adapts seamlessly to all screen sizes:
+
+- **Desktop**: Full two-column layout with sidebar
+- **Tablet**: Stacked columns with adjusted spacing
+- **Mobile**: Single column with optimized touch targets
+
+**Key Breakpoints:**
+
+- `md:` prefix for medium screens and up
+- `lg:` prefix for large screens (two-column layout)
+- Tab navigation optimized for mobile with icon-only display
+
+## Performance Features
+
+### Efficient Data Loading
+
+The dashboard loads data on mount using React's `useEffect`:
+
+```typescript
+useEffect(() => {
+  // 1. Load authenticated user
+  const user = db.auth.getCurrentUser();
+  
+  // 2. Load wizard profile
+  const wizardProfile = loadWizardProfile(user.id);
+  
+  // 3. Determine interests
+  const interests = wizardProfile?.derivedTags || user.interests;
+  
+  // 4. Load and filter content
+  const recommendations = filterByInterests(interests);
+  
+  // 5. Load recent blog posts
+  const posts = db.blog.getAll().slice(0, 2);
+  
+  // 6. Find next virtual event
+  const nextEvent = findNextOnlineEvent();
+}, []);
+```
+
+### Optimized Rendering
+
+- Conditional rendering based on active tab
+- Lazy loading of content modals
+- Memoized state updates to prevent unnecessary re-renders
+
+<Card title="Performance Tip" icon="gauge-high">
+  The dashboard limits recommendations to 6 items and blog posts to 2, ensuring fast load times even with large content libraries.
+</Card>

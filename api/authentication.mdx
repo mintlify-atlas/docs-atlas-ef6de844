@@ -1,0 +1,211 @@
+---
+title: Authentication API
+description: User authentication, session management, and user operations
+---
+
+## Overview
+
+The Authentication API (`db.auth`) provides methods for user login, logout, session management, and user profile operations. All authentication data is stored in localStorage with the key `cafh_user_session_v1`.
+
+## Methods
+
+### login
+
+Authenticates a user with email and password credentials.
+
+```typescript
+db.auth.login(email: string, pass: string): User | null
+```
+
+<ParamField path="email" type="string" required>
+  User's email address
+</ParamField>
+
+<ParamField path="pass" type="string" required>
+  User's password
+</ParamField>
+
+<ResponseField name="return" type="User | null">
+  Returns a User object if authentication succeeds, or null if credentials are invalid
+</ResponseField>
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    const user = db.auth.login('admin@cafh.cl', 'admin123');
+    if (user) {
+      console.log(`Welcome ${user.name}`);
+      console.log(`Role: ${user.role}`);
+    } else {
+      console.log('Invalid credentials');
+    }
+    ```
+  </Tab>
+  <Tab title="Valid Credentials (Demo)">
+    ```typescript
+    // Administrator account
+    db.auth.login('admin@cafh.cl', 'admin123');
+    
+    // Member account
+    db.auth.login('miembro@cafh.cl', 'miembro123');
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### logout
+
+Clears the current user session.
+
+```typescript
+db.auth.logout(): void
+```
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    db.auth.logout();
+    console.log('Session cleared');
+    ```
+  </Tab>
+  <Tab title="Usage in Component">
+    ```typescript
+    const handleLogout = () => {
+      db.auth.logout();
+      navigate('/login');
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### getCurrentUser
+
+Retrieves the currently authenticated user from session storage.
+
+```typescript
+db.auth.getCurrentUser(): User | null
+```
+
+<ResponseField name="return" type="User | null">
+  Returns the current User object if a session exists, or null if no user is logged in
+</ResponseField>
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    const currentUser = db.auth.getCurrentUser();
+    if (currentUser) {
+      console.log(`Logged in as: ${currentUser.name}`);
+      console.log(`Role: ${currentUser.role}`);
+      console.log(`Tenant: ${currentUser.tenantId}`);
+    }
+    ```
+  </Tab>
+  <Tab title="Protected Route Guard">
+    ```typescript
+    const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+      const user = db.auth.getCurrentUser();
+      
+      if (!user) {
+        return <Navigate to="/login" replace />;
+      }
+      
+      return <>{children}</>;
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### getAllUsers
+
+Retrieves all users in the system (demo data).
+
+```typescript
+db.auth.getAllUsers(): User[]
+```
+
+<ResponseField name="return" type="User[]">
+  Returns an array of all User objects in the system
+</ResponseField>
+
+```typescript
+const allUsers = db.auth.getAllUsers();
+console.log(`Total users: ${allUsers.length}`);
+```
+
+---
+
+### updateCurrentUser
+
+Updates the current user's profile information.
+
+```typescript
+db.auth.updateCurrentUser(updates: Partial<User>): User | null
+```
+
+<ParamField path="updates" type="Partial<User>" required>
+  Object containing the user fields to update
+</ParamField>
+
+<ResponseField name="return" type="User | null">
+  Returns the updated User object, or null if no session exists
+</ResponseField>
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    const updatedUser = db.auth.updateCurrentUser({
+      name: 'Juan Pérez',
+      phone: '+56 9 1234 5678',
+      city: 'Santiago',
+      interests: ['Meditación', 'Yoga', 'Retiros']
+    });
+    
+    if (updatedUser) {
+      console.log('Profile updated successfully');
+    }
+    ```
+  </Tab>
+  <Tab title="Update Avatar">
+    ```typescript
+    db.auth.updateCurrentUser({
+      avatarUrl: 'https://example.com/avatar.jpg',
+      coverUrl: 'https://example.com/cover.jpg'
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## User Roles
+
+The system supports the following user roles via the `UserRole` enum:
+
+- `SUPER_ADMIN` - Full system access
+- `ADMIN` - Administrative access
+- `EDITOR` - Content editing access
+- `MEMBER` - Standard member access
+- `GUEST` - Limited guest access
+
+```typescript
+import { UserRole } from './types';
+
+const user = db.auth.getCurrentUser();
+if (user?.role === UserRole.SUPER_ADMIN) {
+  // Admin-only functionality
+}
+```
+
+## Storage Key
+
+- **Key:** `cafh_user_session_v1`
+- **Location:** `localStorage`
+- **Format:** JSON-serialized User object
+
+## Related Types
+
+See [Data Types](/api/data-types) for the complete `User` interface definition.

@@ -1,0 +1,394 @@
+---
+title: "Theming"
+description: "Customize colors, branding, and visual design"
+icon: "palette"
+---
+
+## Theme System
+
+CAFH Platform uses Tailwind CSS for styling with a customizable color scheme defined in `constants.ts`.
+
+## Primary Color
+
+The primary brand color is set in the tenant configuration:
+
+```typescript constants.ts
+export const CURRENT_TENANT: Tenant = {
+  id: 't_santiago_01',
+  name: 'Cafh Chile - Sede Central',
+  domain: 'cafh.cl',
+  theme: {
+    primaryColor: '#1A428A',  // Deep blue
+    logoUrl: '',
+  }
+};
+```
+
+### Using Primary Color
+
+```tsx
+import { CURRENT_TENANT } from './constants';
+
+<div style={{ color: CURRENT_TENANT.theme.primaryColor }}>
+  Branded content
+</div>
+
+<button style={{ backgroundColor: CURRENT_TENANT.theme.primaryColor }}>
+  Call to Action
+</button>
+```
+
+## Tailwind Classes
+
+The platform uses Tailwind's utility-first approach:
+
+```tsx
+// Layout
+<div className="container mx-auto px-4">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {/* Content */}
+  </div>
+</div>
+
+// Typography
+<h1 className="text-4xl font-bold text-gray-900">
+  Heading
+</h1>
+<p className="text-gray-600 leading-relaxed">
+  Body text
+</p>
+
+// Buttons
+<button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+  Primary Button
+</button>
+
+// Cards
+<div className="bg-white rounded-xl shadow-lg p-6">
+  Card content
+</div>
+```
+
+## Color Palette
+
+### Admin Dashboard
+
+```tsx components/Layout.tsx
+// Sidebar
+<div className="bg-slate-900 text-white">
+  <nav>
+    <a className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800">
+      <Icon className="w-5 h-5" />
+      <span>Menu Item</span>
+    </a>
+  </nav>
+</div>
+
+// Content area
+<div className="bg-gray-50 min-h-screen">
+  {/* Main content */}
+</div>
+```
+
+### Public Pages
+
+```tsx
+// Hero section
+<div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white">
+  <h1 className="text-5xl font-bold">Welcome</h1>
+</div>
+
+// Content sections
+<section className="bg-white py-16">
+  {/* White background */}
+</section>
+
+<section className="bg-gray-50 py-16">
+  {/* Alternating gray */}
+</section>
+```
+
+## Customizing Colors
+
+### Method 1: Update constants.ts
+
+```typescript constants.ts
+export const CURRENT_TENANT: Tenant = {
+  theme: {
+    primaryColor: '#10B981',  // Change to green
+    logoUrl: '/path/to/logo.svg',
+  }
+};
+```
+
+### Method 2: Component-level overrides
+
+```tsx
+const CustomButton: React.FC = () => {
+  return (
+    <button 
+      className="px-6 py-3 rounded-lg text-white"
+      style={{ backgroundColor: '#10B981' }}  // Custom green
+    >
+      Click Me
+    </button>
+  );
+};
+```
+
+### Method 3: CSS variables
+
+Define theme variables in `index.html`:
+
+```html index.html
+<style>
+  :root {
+    --color-primary: #1A428A;
+    --color-secondary: #6366f1;
+    --color-accent: #f59e0b;
+  }
+</style>
+```
+
+Use in components:
+
+```tsx
+<div style={{ color: 'var(--color-primary)' }}>
+  Themed content
+</div>
+```
+
+## Logo and Branding
+
+### Add Logo
+
+```typescript constants.ts
+export const CURRENT_TENANT: Tenant = {
+  theme: {
+    primaryColor: '#1A428A',
+    logoUrl: '/logo.svg',  // Add logo path
+  }
+};
+```
+
+Use in header:
+
+```tsx components/Layout.tsx
+<header>
+  {CURRENT_TENANT.theme.logoUrl ? (
+    <img 
+      src={CURRENT_TENANT.theme.logoUrl} 
+      alt={CURRENT_TENANT.name}
+      className="h-10"
+    />
+  ) : (
+    <span className="text-xl font-bold">
+      {CURRENT_TENANT.name}
+    </span>
+  )}
+</header>
+```
+
+## Dark Mode
+
+Admin dashboard uses dark sidebar:
+
+```tsx
+// Dark sidebar
+<aside className="bg-slate-900 text-white">
+  <nav>
+    <a className="text-slate-300 hover:text-white hover:bg-slate-800">
+      Menu Item
+    </a>
+  </nav>
+</aside>
+
+// Light content
+<main className="bg-white">
+  {/* Content */}
+</main>
+```
+
+For full dark mode toggle, use Tailwind's `dark:` variant:
+
+```tsx
+<div className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">
+  Content that adapts to dark mode
+</div>
+```
+
+## Icon Customization
+
+The platform uses Lucide React icons:
+
+```tsx
+import { 
+  Users,      // People
+  Mail,       // Email
+  Calendar,   // Events
+  Settings,   // Configuration
+  Heart,      // Favorites
+  BarChart    // Analytics
+} from 'lucide-react';
+
+// Usage
+<Users className="w-5 h-5 text-blue-600" />
+<Mail className="w-4 h-4 text-gray-500" />
+```
+
+Change icons in `constants.ts`:
+
+```typescript constants.ts
+export const DEFAULT_HOME_CONFIG = {
+  threeColumns: [
+    { 
+      icon: 'Heart',      // Change to 'Star', 'Sparkles', etc.
+      title: 'Qué es Cafh', 
+      description: '...' 
+    },
+  ],
+};
+```
+
+## Typography
+
+### Headings
+
+```tsx
+<h1 className="text-4xl font-bold text-gray-900">Main Heading</h1>
+<h2 className="text-3xl font-semibold text-gray-800">Section</h2>
+<h3 className="text-2xl font-medium text-gray-700">Subsection</h3>
+```
+
+### Body Text
+
+```tsx
+<p className="text-gray-600 leading-relaxed">
+  Body text with comfortable line height
+</p>
+
+<p className="text-sm text-gray-500">
+  Small print or captions
+</p>
+```
+
+### Custom Fonts
+
+Add to `index.html`:
+
+```html index.html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+</style>
+```
+
+## Responsive Design
+
+Tailwind's responsive prefixes:
+
+```tsx
+<div className="
+  grid 
+  grid-cols-1      {/* Mobile: 1 column */}
+  md:grid-cols-2   {/* Tablet: 2 columns */}
+  lg:grid-cols-3   {/* Desktop: 3 columns */}
+  gap-6
+">
+  {/* Cards */}
+</div>
+
+<h1 className="
+  text-2xl        {/* Mobile: 2xl */}
+  md:text-4xl     {/* Tablet: 4xl */}
+  lg:text-5xl     {/* Desktop: 5xl */}
+  font-bold
+">
+  Responsive Heading
+</h1>
+```
+
+## Component Examples
+
+### Branded Button
+
+```tsx
+const BrandedButton: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <button 
+      className="px-6 py-3 rounded-lg text-white font-medium transition-colors"
+      style={{ 
+        backgroundColor: CURRENT_TENANT.theme.primaryColor,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.opacity = '0.9';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.opacity = '1';
+      }}
+    >
+      {children}
+    </button>
+  );
+};
+```
+
+### Themed Card
+
+```tsx
+const ThemedCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
+  return (
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div 
+        className="px-6 py-4 text-white font-semibold"
+        style={{ backgroundColor: CURRENT_TENANT.theme.primaryColor }}
+      >
+        {title}
+      </div>
+      <div className="p-6">
+        {children}
+      </div>
+    </div>
+  );
+};
+```
+
+## Best Practices
+
+<Accordion title="Use Tailwind utilities first">
+  Prefer Tailwind classes over custom CSS for consistency and smaller bundle size.
+</Accordion>
+
+<Accordion title="Extract repeated patterns">
+  Create reusable components for common UI patterns:
+  ```tsx
+  <PrimaryButton>Click Me</PrimaryButton>
+  <SecondaryButton>Cancel</SecondaryButton>
+  ```
+</Accordion>
+
+<Accordion title="Maintain contrast ratios">
+  Ensure text is readable on backgrounds. Use tools like [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/).
+</Accordion>
+
+<Accordion title="Test responsive breakpoints">
+  Test on mobile (375px), tablet (768px), and desktop (1280px) widths.
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extending Types" icon="plus" href="/development/extending-types">
+    Add new data structures
+  </Card>
+  <Card title="Adding Modules" icon="puzzle" href="/development/adding-modules">
+    Build new features
+  </Card>
+  <Card title="Site Settings" icon="gear" href="/admin/site-settings">
+    Configure branding in admin
+  </Card>
+</CardGroup>

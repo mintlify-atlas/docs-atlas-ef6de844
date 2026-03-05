@@ -1,0 +1,127 @@
+---
+title: Introduction to CAFH Platform
+description: A comprehensive multi-tenant CMS and CRM platform for spiritual community management
+---
+
+# Welcome to CAFH Platform
+
+CAFH Platform is a complete digital ecosystem designed for spiritual organizations and communities. Built with React and TypeScript, it provides everything needed to manage members, content, communications, and activities in one unified system.
+
+## What is CAFH Platform?
+
+CAFH Platform is a multi-tenant SaaS application that combines:
+
+<CardGroup cols={2}>
+  <Card title="Content Management" icon="file-text">
+    Dynamic page builder with WYSIWYG editing, blog management, and SEO optimization
+  </Card>
+  <Card title="Member Management" icon="users">
+    Complete CRM with contact lists, engagement tracking, and member dashboards
+  </Card>
+  <Card title="Email Automation" icon="mail">
+    Visual automation builder with triggers, conditions, and campaign management
+  </Card>
+  <Card title="Virtual Meetings" icon="video">
+    Zoom integration with lobby system, feedback collection, and participation tracking
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### For Administrators
+
+- **Dynamic CMS**: Build and manage pages without code using a drag-and-drop interface
+- **CRM & Contacts**: Track member engagement with scoring, tags, and segmentation
+- **Email Campaigns**: Design, test, and send campaigns with rate-limiting and queue management
+- **Marketing Automation**: Create multi-step workflows with visual editor
+- **Media Library**: Centralized asset management with tags and folders
+- **Analytics Dashboard**: Track content views, email performance, and member activity
+- **Virtual Meetings**: Manage Zoom sessions with agendas, resources, and post-session feedback
+- **Activity Calendar**: Schedule events with multi-modality support (Virtual, In-person, Hybrid)
+
+### For Members
+
+- **Personalized Dashboard**: Activity history, recommended content, and upcoming events
+- **Onboarding Wizard**: Interactive questionnaire that creates user profiles
+- **Content Discovery**: Browse library filtered by interests and profile type
+- **Event Registration**: Join virtual meetings and track participation history
+- **Gamification**: Earn badges and recognition for participation
+
+## Technical Architecture
+
+CAFH Platform is built with modern web technologies:
+
+```typescript
+// Tech Stack
+const techStack = {
+  frontend: "React 18 + TypeScript",
+  router: "React Router v6 (Hash-based)",
+  styling: "Tailwind CSS",
+  storage: "LocalStorage (simulated 200MB persistence)",
+  backend: "Optional Node.js API for email queue",
+  integrations: ["Zoom", "Mailrelay", "Google Analytics", "Meta Pixel"]
+};
+```
+
+<Note>
+  The platform uses a local-first architecture with localStorage for rapid prototyping. For production deployment, the storage layer can be swapped with a real database backend.
+</Note>
+
+## Use Cases
+
+CAFH Platform is ideal for:
+
+- **Spiritual Communities**: Manage members, teachings, and events
+- **Religious Organizations**: Share content, coordinate activities, track engagement
+- **Meditation Centers**: Schedule sessions, collect feedback, build community
+- **Educational Institutions**: Deliver courses, manage students, communicate updates
+- **Non-Profits**: Engage donors, volunteers, and beneficiaries
+
+## Platform Modules
+
+The platform is organized into focused modules:
+
+<Steps>
+  <Step title="Public Website">
+    Dynamic homepage, navigation menu, blog, and resource library accessible to all visitors
+  </Step>
+  <Step title="Member Portal">
+    Personalized dashboard with activity tracking, content recommendations, and event access
+  </Step>
+  <Step title="Admin Panel">
+    Complete management interface with CRM, CMS, automation, and analytics tools
+  </Step>
+  <Step title="Virtual Room (Module 1)">
+    Zoom integration with lobby, agenda, feedback forms, and gamification
+  </Step>
+  <Step title="Activity Calendar (Module 2)">
+    Event management with categories, registration tracking, and dashboard integration
+  </Step>
+</Steps>
+
+## Getting Started
+
+Ready to explore? Continue to the [Quick Start Guide](/quickstart) to get your first CAFH instance running, or dive into [Architecture Overview](/architecture) to understand how everything works.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get a CAFH instance running in 5 minutes
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Understand the platform structure
+  </Card>
+  <Card title="User Roles" icon="user-shield" href="/concepts/user-roles">
+    Learn about permissions and access control
+  </Card>
+  <Card title="Data Model" icon="database" href="/concepts/data-model">
+    Explore the data structures
+  </Card>
+</CardGroup>
+
+## Support & Community
+
+<Warning>
+  This is a prototype/demo platform. For production use, implement proper authentication, database persistence, and security measures.
+</Warning>
+
+Have questions? Check out our [Core Concepts](/concepts/user-roles) section or explore the source code to understand implementation details.

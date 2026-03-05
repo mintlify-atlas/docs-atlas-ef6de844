@@ -1,0 +1,462 @@
+---
+title: 'Media Library'
+description: 'Centralized asset management with search, tagging, and organization'
+icon: 'photo-film'
+---
+
+The Media Library is a centralized system for uploading, organizing, and managing all media assets used across the CAFH Platform including images, videos, documents, and audio files.
+
+## Media Asset Structure
+
+Assets are defined with comprehensive metadata (`types.ts:318-329`):
+
+```typescript
+export interface MediaAsset {
+  id: string;
+  name: string;
+  type: 'image' | 'video' | 'document' | 'audio';
+  url: string;
+  size: string;
+  dimensions?: string;
+  uploadedAt: string;
+  tags: string[];
+  folderId?: string;
+}
+```
+
+## Accessing the Media Library
+
+<Steps>
+  <Step title="Navigate to Library">
+    Go to **CMS → Media Library** in the admin panel
+  </Step>
+  <Step title="Browse Assets">
+    View all uploaded media in grid or list view
+  </Step>
+  <Step title="Filter by Type">
+    Use type filters: All, Images, Videos, Documents, Audio
+  </Step>
+  <Step title="Search Assets">
+    Search by filename, tags, or metadata
+  </Step>
+</Steps>
+
+## Uploading Media
+
+### Supported File Types
+
+<Tabs>
+  <Tab title="Images">
+    **Formats**: JPEG, PNG, GIF, WebP, SVG
+    
+    **Max Size**: 10MB per file
+    
+    **Recommended**: WebP for photos (best compression)
+    
+    **Use Cases**: Featured images, blog photos, page graphics
+  </Tab>
+  <Tab title="Videos">
+    **Formats**: MP4, WebM, MOV
+    
+    **Max Size**: 100MB per file
+    
+    **Recommended**: MP4 H.264 codec
+    
+    **Use Cases**: Hero backgrounds, tutorials, testimonials
+    
+    <Note>Large videos should be hosted on YouTube/Vimeo and embedded</Note>
+  </Tab>
+  <Tab title="Documents">
+    **Formats**: PDF, DOC, DOCX, TXT, MD
+    
+    **Max Size**: 25MB per file
+    
+    **Use Cases**: Downloadable resources, guides, forms
+  </Tab>
+  <Tab title="Audio">
+    **Formats**: MP3, WAV, OGG
+    
+    **Max Size**: 50MB per file
+    
+    **Recommended**: MP3 at 128-192 kbps
+    
+    **Use Cases**: Meditations, podcasts, talks
+  </Tab>
+</Tabs>
+
+### Upload Process
+
+<Steps>
+  <Step title="Click Upload Button">
+    Select "Upload Media" in the Media Library toolbar
+  </Step>
+  <Step title="Choose Files">
+    Select one or multiple files from your device
+  </Step>
+  <Step title="Add Metadata">
+    Enter filename, tags, and optional description
+  </Step>
+  <Step title="Assign to Folder">
+    Optionally place in a folder for organization
+  </Step>
+  <Step title="Upload">
+    Files are processed and added to the library
+  </Step>
+</Steps>
+
+## Media Management UI
+
+The Media Library UI is implemented in `AdminViews.tsx` with these views:
+
+### Grid View
+
+Visual thumbnail grid showing:
+- Asset thumbnails
+- File type icons
+- Asset names
+- Quick action buttons (view, edit, delete)
+
+### List View
+
+Detailed table showing:
+- Filename
+- Type
+- Size
+- Dimensions (for images/videos)
+- Upload date
+- Tags
+- Actions
+
+### View Toggle
+
+Switch between views using icons in the toolbar:
+
+```typescript
+<Grid size={18} />  // Grid view
+<List size={18} />  // List view
+```
+
+## Organizing Media
+
+### Folder System
+
+Create folders to organize assets by project or type:
+
+```typescript
+export interface MediaFolder {
+  id: string;
+  name: string;
+  parentId?: string;  // For nested folders
+}
+```
+
+### Recommended Folder Structure
+
+```
+📁 Media Library
+├── 📁 Blog
+│   ├── 📁 2024
+│   ├── 📁 2023
+│   └── 📁 Featured Images
+├── 📁 Pages
+│   ├── 📁 Heroes
+│   ├── 📁 Icons
+│   └── 📁 Backgrounds
+├── 📁 Events
+│   ├── 📁 Posters
+│   └── 📁 Galleries
+├── 📁 Resources
+│   ├── 📁 PDFs
+│   ├── 📁 Audio
+│   └── 📁 Videos
+└── 📁 Logos
+    ├── 📁 Primary
+    └── 📁 Variations
+```
+
+## Tagging System
+
+Tags enable cross-folder searching and filtering:
+
+### Best Practices for Tags
+
+- Use lowercase for consistency
+- Include broad categories: `meditation`, `retreat`, `community`
+- Add specific descriptors: `hero-image`, `thumbnail`, `icon`
+- Use location tags: `santiago`, `online`, `argentina`
+- Include year for dated content: `2024`
+
+### Example Tag Sets
+
+**Blog Featured Image**:
+```
+["blog", "featured", "meditation", "2024"]
+```
+
+**Event Poster**:
+```
+["event", "poster", "retiro", "santiago", "2024"]
+```
+
+**Resource PDF**:
+```
+["resource", "pdf", "guide", "method", "beginner"]
+```
+
+## Searching and Filtering
+
+The Media Library supports advanced search (`storage.ts:419-424`):
+
+```javascript
+// Search by query and type
+db.media.search("meditation", "image")
+
+// Returns assets matching:
+// - Filename contains "meditation"
+// - Tags include "meditation"
+// - Type is "image"
+```
+
+### Search Operators
+
+| Operator | Example | Result |
+|----------|---------|--------|
+| Basic | `meditation` | Matches filename or tags |
+| Type filter | `type:image` | Only images |
+| Tag filter | `tag:hero` | Only assets with "hero" tag |
+| Date filter | `date:2024` | Uploaded in 2024 |
+
+## Image Optimization
+
+### Recommended Sizes
+
+| Use Case | Dimensions | Format | Max Size |
+|----------|-----------|--------|----------|
+| Hero backgrounds | 1920x1080px | WebP/JPEG | 300KB |
+| Featured images | 1200x630px | WebP/JPEG | 200KB |
+| Blog thumbnails | 600x400px | WebP/JPEG | 100KB |
+| Icons | 512x512px | PNG/SVG | 50KB |
+| Logos | Variable | SVG/PNG | 30KB |
+
+### Optimization Tools
+
+- **TinyPNG/TinyJPG**: Compress without quality loss
+- **Squoosh**: Google's web-based optimizer
+- **ImageOptim**: Mac desktop app
+- **GIMP/Photoshop**: Manual optimization
+
+<Tip>
+Convert to WebP format for 25-35% smaller file sizes with same visual quality.
+</Tip>
+
+## Managing Assets
+
+### Editing Asset Metadata
+
+<Steps>
+  <Step title="Select Asset">
+    Click on any asset in the library
+  </Step>
+  <Step title="Open Editor">
+    Click the edit icon or select "Edit Details"
+  </Step>
+  <Step title="Update Fields">
+    Modify name, tags, or folder assignment
+  </Step>
+  <Step title="Save Changes">
+    Changes are saved immediately to storage
+  </Step>
+</Steps>
+
+### Deleting Assets
+
+<Warning>
+Deleting media assets is permanent. Assets used in pages or posts will show broken links.
+</Warning>
+
+<Steps>
+  <Step title="Select Asset">
+    Click the checkbox on one or more assets
+  </Step>
+  <Step title="Click Delete">
+    Press the delete button in the toolbar
+  </Step>
+  <Step title="Confirm Deletion">
+    A dialog warns about permanent removal
+  </Step>
+  <Step title="Asset Removed">
+    The asset is immediately removed from storage
+  </Step>
+</Steps>
+
+Deletion is handled by (`storage.ts:413-418`):
+
+```javascript
+db.media.delete(assetId)
+```
+
+### Bulk Operations
+
+Select multiple assets to:
+
+- **Add tags**: Apply tags to all selected
+- **Move to folder**: Bulk organize
+- **Delete**: Remove multiple assets
+- **Download**: Get a zip of selected files
+
+## Using Assets in Content
+
+### In Pages Editor
+
+When adding an Image section:
+
+1. Click "Select from Media Library"
+2. Browse or search for the asset
+3. Click to insert the URL automatically
+
+### In Blog Posts
+
+For featured images:
+
+1. In the image URL field, click the media icon
+2. Select an image from the library
+3. The URL populates automatically
+
+### In Custom Code
+
+Reference assets by their URL:
+
+```html
+<img src="/media/hero-meditation.jpg" alt="Meditation space" />
+```
+
+## Storage and Performance
+
+Media assets are stored with this configuration (`storage.ts:400-425`):
+
+| Storage Key | Content |
+|-------------|----------|
+| `cafh_media_v1` | Array of MediaAsset objects |
+
+### Storage Considerations
+
+- **localStorage limit**: ~10MB total for all data
+- **Asset URLs**: Typically stored as base64 or external URLs
+- **Large files**: Should be hosted externally (CDN)
+- **Performance**: Keep total assets under 500 for optimal loading
+
+<Note>
+For production sites with extensive media needs, integrate with a CDN like Cloudinary or AWS S3.
+</Note>
+
+## Media Library Maintenance
+
+### Regular Tasks
+
+<AccordionGroup>
+  <Accordion title="Monthly Audit">
+    - Remove unused assets
+    - Check for duplicate files
+    - Verify all links still work
+    - Update tags for better organization
+  </Accordion>
+
+  <Accordion title="Quarterly Review">
+    - Archive old event images
+    - Optimize large files
+    - Reorganize folder structure
+    - Document naming conventions
+  </Accordion>
+
+  <Accordion title="Annual Cleanup">
+    - Delete deprecated assets
+    - Migrate to CDN if needed
+    - Review and update metadata
+    - Export backup of all media
+  </Accordion>
+</AccordionGroup>
+
+## Access Control
+
+Media Library access is role-based:
+
+| Role | Permissions |
+|------|-------------|
+| **SUPER_ADMIN** | Full access: upload, edit, delete |
+| **ADMIN** | Upload, edit own uploads, view all |
+| **EDITOR** | Upload, edit own uploads |
+| **MEMBER** | View public assets only |
+| **GUEST** | No access |
+
+<Note>
+Role management is covered in the [User Role Management](/admin/user-roles) documentation.
+</Note>
+
+## Best Practices
+
+### File Naming
+
+✅ **Good Names**:
+- `hero-meditation-room-2024.jpg`
+- `retreat-poster-santiago-march.pdf`
+- `podcast-episode-12-spirituality.mp3`
+
+❌ **Poor Names**:
+- `IMG_1234.jpg`
+- `untitled.pdf`
+- `recording.mp3`
+
+### Alt Text
+
+Always include descriptive alt text for images:
+
+```html
+<!-- Good -->
+<img src="meditation.jpg" alt="Person meditating in peaceful garden at sunset" />
+
+<!-- Poor -->
+<img src="meditation.jpg" alt="image" />
+```
+
+### Copyright
+
+- Only upload media you own or have permission to use
+- Store license info in asset description
+- Credit photographers/creators when required
+- Use royalty-free stock for generic images
+
+## Troubleshooting
+
+### Upload Fails
+
+- **Check file size**: Must be under type-specific limit
+- **Verify format**: Use supported file types
+- **Clear cache**: Browser cache may cause issues
+- **Check quota**: localStorage may be full
+
+### Broken Image Links
+
+- **Verify URL**: Check that the asset still exists
+- **Check permissions**: Asset may be private
+- **Update references**: If moved to CDN, update URLs
+
+### Slow Loading
+
+- **Optimize images**: Compress to WebP format
+- **Use CDN**: Move large files to external hosting
+- **Lazy load**: Implement lazy loading for galleries
+- **Reduce size**: Resize images to needed dimensions
+
+## Related Documentation
+
+<CardGroup cols={3}>
+  <Card title="CMS Overview" icon="layout" href="/admin/cms-overview">
+    Complete content management system
+  </Card>
+  <Card title="Pages Editor" icon="file-pen" href="/admin/pages-editor">
+    Using media in custom pages
+  </Card>
+  <Card title="Blog Management" icon="rss" href="/admin/blog-management">
+    Adding images to blog posts
+  </Card>
+</CardGroup>

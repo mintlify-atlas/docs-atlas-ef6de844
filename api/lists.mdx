@@ -1,0 +1,194 @@
+---
+title: 'Contact Lists API'
+description: 'Manage segmented contact lists for targeted campaigns'
+icon: 'list'
+---
+
+## Overview
+
+Contact Lists allow you to segment your CRM contacts into targeted groups for campaigns, automations, and analytics.
+
+---
+
+## Methods
+
+### getLists
+
+Retrieve all contact lists.
+
+```typescript
+db.crm.getLists(): ContactList[]
+```
+
+<ResponseField name="lists" type="ContactList[]">
+  Array of all contact lists
+</ResponseField>
+
+**Example:**
+
+```typescript
+const lists = db.crm.getLists();
+console.log(`Total lists: ${lists.length}`);
+```
+
+---
+
+### addList
+
+Create a new contact list.
+
+```typescript
+db.crm.addList(listData: Omit<ContactList, 'id' | 'createdAt'>): ContactList
+```
+
+<ParamField path="listData.name" type="string" required>
+  List name
+</ParamField>
+
+<ParamField path="listData.description" type="string" required>
+  List description
+</ParamField>
+
+<ParamField path="listData.contactCount" type="number" optional>
+  Initial contact count (defaults to 0)
+</ParamField>
+
+<ResponseField name="list" type="ContactList">
+  The newly created list with generated ID and timestamp
+</ResponseField>
+
+**Example:**
+
+```typescript
+const newList = db.crm.addList({
+  name: 'Newsletter Subscribers',
+  description: 'All active newsletter subscribers',
+  contactCount: 0
+});
+```
+
+---
+
+### updateList
+
+Update an existing list.
+
+```typescript
+db.crm.updateList(list: ContactList): ContactList[]
+```
+
+<ParamField path="list" type="ContactList" required>
+  Complete list object with updates
+</ParamField>
+
+<ResponseField name="lists" type="ContactList[]">
+  Updated array of all lists
+</ResponseField>
+
+**Example:**
+
+```typescript
+const list = db.crm.getLists()[0];
+list.description = 'Updated description';
+list.contactCount = 150;
+db.crm.updateList(list);
+```
+
+---
+
+### deleteList
+
+Delete a list and remove it from all contacts.
+
+```typescript
+db.crm.deleteList(listId: string): ContactList[]
+```
+
+<ParamField path="listId" type="string" required>
+  ID of the list to delete
+</ParamField>
+
+<ResponseField name="lists" type="ContactList[]">
+  Updated array of remaining lists
+</ResponseField>
+
+**Example:**
+
+```typescript
+db.crm.deleteList('list_12345');
+```
+
+<Warning>
+Deleting a list will automatically remove the listId reference from all contacts' `listIds` arrays.
+</Warning>
+
+---
+
+## ContactList Type
+
+```typescript
+interface ContactList {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  contactCount?: number;
+}
+```
+
+---
+
+## Working with List Membership
+
+Contacts can belong to multiple lists via the `listIds` field.
+
+### Add Contact to List
+
+```typescript
+const contact = db.crm.getById('c_12345');
+if (contact) {
+  const listIds = contact.listIds || [];
+  if (!listIds.includes('list_abc')) {
+    contact.listIds = [...listIds, 'list_abc'];
+    db.crm.update(contact);
+  }
+}
+```
+
+### Remove Contact from List
+
+```typescript
+const contact = db.crm.getById('c_12345');
+if (contact && contact.listIds) {
+  contact.listIds = contact.listIds.filter(id => id !== 'list_abc');
+  db.crm.update(contact);
+}
+```
+
+### Get Contacts in List
+
+```typescript
+const listId = 'list_12345';
+const contactsInList = db.crm.getAll()
+  .filter(c => c.listIds?.includes(listId));
+console.log(`Contacts in list: ${contactsInList.length}`);
+```
+
+---
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Segmentation" icon="filter">
+    Create lists for different member types, interests, or engagement levels
+  </Card>
+  <Card title="Campaigns" icon="envelope">
+    Target specific lists with email campaigns
+  </Card>
+  <Card title="Automations" icon="robot">
+    Trigger automations when contacts join lists
+  </Card>
+  <Card title="Analytics" icon="chart-line">
+    Track growth and engagement per list
+  </Card>
+</CardGroup>

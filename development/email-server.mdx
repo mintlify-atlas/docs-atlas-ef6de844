@@ -1,0 +1,365 @@
+---
+title: "Email Server"
+description: "Email queue and SMTP configuration for production"
+icon: "envelope"
+---
+
+## Email Architecture
+
+CAFH Platform uses a queue-based email system:
+
+1. **Admin creates campaign** → Emails added to queue
+2. **Queue worker processes** → Sends emails via SMTP
+3. **Rate limiting** → Respects hourly limits
+4. **Logs and metrics** → Track delivery and engagement
+
+## Server Implementation
+
+From `server.ts`:
+
+```typescript server.ts lines
+import express from "express";
+import nodemailer from "nodemailer";
+import fs from "fs";
+
+const app = express();
+const DB_PATH = path.join(__dirname, "data.json");
+
+// Email transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "localhost",
+  port: parseInt(process.env.SMTP_PORT || "465"),
+  secure: process.env.SMTP_SECURE === "true",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+// Queue database
+interface DB {
+  queue: QueuedEmail[];
+  sentCountThisHour: number;
+  lastResetTime: string;
+}
+
+interface QueuedEmail {
+  id: string;
+  to: string;
+  subject: string;
+  content: string;
+  status: 'pending' | 'sent' | 'failed';
+  createdAt: string;
+  sentAt?: string;
+  error?: string;
+}
+```
+
+## API Endpoints
+
+### POST /api/email/queue
+
+Add emails to the queue:
+
+```typescript
+app.post("/api/email/queue", (req, res) => {
+  const { recipients, subject, content } = req.body;
+  
+  const db = loadDB();
+  const newEmails: QueuedEmail[] = recipients.map(email => ({
+    id: Math.random().toString(36).substr(2, 9),
+    to: email,
+    subject,
+    content,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  }));
+
+  db.queue.push(...newEmails);
+  saveDB(db);
+
+  res.json({ 
+    message: `${newEmails.length} emails added to queue`,
+    queueSize: db.queue.filter(e => e.status === 'pending').length
+  });
+});
+```
+
+### GET /api/email/status
+
+Get queue status:
+
+```typescript
+app.get("/api/email/status", (req, res) => {
+  const db = loadDB();
+  const pending = db.queue.filter(e => e.status === 'pending').length;
+  const sent = db.queue.filter(e => e.status === 'sent').length;
+  const failed = db.queue.filter(e => e.status === 'failed').length;
+
+  res.json({
+    pending,
+    sent,
+    failed,
+    sentCountThisHour: db.sentCountThisHour,
+    limit: parseInt(process.env.MAX_EMAILS_PER_HOUR || "80")
+  });
+});
+```
+
+## Queue Worker
+
+Processes emails every 30 seconds:
+
+```typescript server.ts
+const processQueue = async () => {
+  const db = loadDB();
+  const now = new Date();
+  const lastReset = new Date(db.lastResetTime);
+  
+  // Reset hourly counter if an hour has passed
+  if (now.getTime() - lastReset.getTime() > 3600000) {
+    db.sentCountThisHour = 0;
+    db.lastResetTime = now.toISOString();
+  }
+
+  const limit = parseInt(process.env.MAX_EMAILS_PER_HOUR || "80");
+  const availableSlots = limit - db.sentCountThisHour;
+
+  if (availableSlots <= 0) {
+    console.log("[Queue Worker] Hourly limit reached");
+    saveDB(db);
+    return;
+  }
+
+  const pendingEmails = db.queue
+    .filter(e => e.status === 'pending')
+    .slice(0, availableSlots);
+
+  console.log(`[Queue Worker] Processing ${pendingEmails.length} emails...`);
+
+  for (const email of pendingEmails) {
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_USER,
+        to: email.to,
+        subject: email.subject,
+        html: email.content
+      });
+      
+      email.status = 'sent';
+      email.sentAt = new Date().toISOString();
+      db.sentCountThisHour++;
+    } catch (error: any) {
+      console.error(`Failed to send to ${email.to}:`, error.message);
+      email.status = 'failed';
+      email.error = error.message;
+    }
+  }
+
+  saveDB(db);
+};
+
+// Run every 30 seconds
+setInterval(processQueue, 30000);
+```
+
+## Rate Limiting
+
+Controlled by `MAX_EMAILS_PER_HOUR`:
+
+```bash .env
+MAX_EMAILS_PER_HOUR=80
+```
+
+The worker:
+- Tracks emails sent this hour
+- Resets counter after 60 minutes
+- Stops sending when limit reached
+- Resumes next hour automatically
+
+## SMTP Providers
+
+<Tabs>
+  <Tab title="cPanel">
+    Most web hosts provide cPanel email:
+
+    ```bash
+    SMTP_HOST=mail.yourdomain.com
+    SMTP_PORT=465
+    SMTP_USER=crm@yourdomain.com
+    SMTP_PASS=your_password
+    SMTP_SECURE=true
+    MAX_EMAILS_PER_HOUR=80
+    ```
+
+    Typical limit: 80-100 emails/hour
+  </Tab>
+
+  <Tab title="SendGrid">
+    Transactional email service:
+
+    ```bash
+    SMTP_HOST=smtp.sendgrid.net
+    SMTP_PORT=587
+    SMTP_USER=apikey
+    SMTP_PASS=your_sendgrid_api_key
+    SMTP_SECURE=false
+    MAX_EMAILS_PER_HOUR=100
+    ```
+
+    Free tier: 100 emails/day
+  </Tab>
+
+  <Tab title="Mailgun">
+    Email automation service:
+
+    ```bash
+    SMTP_HOST=smtp.mailgun.org
+    SMTP_PORT=587
+    SMTP_USER=postmaster@yourdomain.mailgun.org
+    SMTP_PASS=your_mailgun_password
+    SMTP_SECURE=false
+    MAX_EMAILS_PER_HOUR=300
+    ```
+
+    Free tier: 5,000 emails/month
+  </Tab>
+
+  <Tab title="Gmail">
+    For testing only:
+
+    ```bash
+    SMTP_HOST=smtp.gmail.com
+    SMTP_PORT=587
+    SMTP_USER=your-email@gmail.com
+    SMTP_PASS=your-app-password
+    SMTP_SECURE=false
+    MAX_EMAILS_PER_HOUR=20
+    ```
+
+    <Warning>
+      Gmail limits to 500 emails/day. Use an [App Password](https://support.google.com/accounts/answer/185833), not your regular password.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Testing Email Locally
+
+<Steps>
+  <Step title="Start the server">
+    ```bash
+    npm run dev
+    ```
+  </Step>
+
+  <Step title="Queue a test email">
+    ```bash
+    curl -X POST http://localhost:3000/api/email/queue \
+      -H "Content-Type: application/json" \
+      -d '{
+        "recipients": ["your-email@example.com"],
+        "subject": "Test Email",
+        "content": "<h1>Hello</h1><p>This is a test.</p>"
+      }'
+    ```
+  </Step>
+
+  <Step title="Check queue status">
+    ```bash
+    curl http://localhost:3000/api/email/status
+    ```
+
+    Response:
+    ```json
+    {
+      "pending": 1,
+      "sent": 0,
+      "failed": 0,
+      "sentCountThisHour": 0,
+      "limit": 80
+    }
+    ```
+  </Step>
+
+  <Step title="Wait for worker">
+    The queue processes every 30 seconds. Check your inbox.
+  </Step>
+</Steps>
+
+## Monitoring
+
+Check `data.json` for queue state:
+
+```json data.json
+{
+  "queue": [
+    {
+      "id": "abc123",
+      "to": "user@example.com",
+      "subject": "Welcome to CAFH",
+      "content": "<p>Welcome!</p>",
+      "status": "sent",
+      "createdAt": "2024-03-05T10:00:00Z",
+      "sentAt": "2024-03-05T10:00:30Z"
+    }
+  ],
+  "sentCountThisHour": 5,
+  "lastResetTime": "2024-03-05T10:00:00Z"
+}
+```
+
+## Troubleshooting
+
+<Accordion title="Emails not sending">
+  1. Check SMTP credentials
+  2. Verify `MAX_EMAILS_PER_HOUR` not exceeded
+  3. Check `data.json` for failed emails
+  4. Review server logs for errors
+</Accordion>
+
+<Accordion title="Authentication failed">
+  - Double-check username and password
+  - For Gmail, use App Password
+  - Verify SMTP host and port
+  - Check firewall allows outbound SMTP
+</Accordion>
+
+<Accordion title="Queue not processing">
+  - Ensure server is running (`npm run dev`)
+  - Check console for worker logs:
+    ```
+    [Queue Worker] Processing 3 emails...
+    ```
+  - Verify `data.json` exists and is writable
+</Accordion>
+
+## Production Recommendations
+
+<CardGroup cols={2}>
+  <Card title="Use a dedicated SMTP service" icon="envelope">
+    SendGrid, Mailgun, or AWS SES provide better deliverability and higher limits
+  </Card>
+  <Card title="Monitor bounce rates" icon="chart-line">
+    Track failed deliveries and remove bounced emails from your list
+  </Card>
+  <Card title="Implement retry logic" icon="rotate">
+    Retry failed emails with exponential backoff
+  </Card>
+  <Card title="Add email templates" icon="file-text">
+    Create reusable HTML templates for campaigns
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="SMTP Configuration" icon="gear" href="/admin/smtp-configuration">
+    Admin guide for SMTP setup
+  </Card>
+  <Card title="Email Campaigns" icon="envelope" href="/admin/email-campaigns">
+    Creating and sending campaigns
+  </Card>
+  <Card title="Automation Workflows" icon="workflow" href="/admin/automation-workflows">
+    Automated email sequences
+  </Card>
+</CardGroup>

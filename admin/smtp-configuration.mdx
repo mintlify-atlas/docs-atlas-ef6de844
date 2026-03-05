@@ -1,0 +1,389 @@
+---
+title: 'SMTP Configuration'
+description: 'Configure email server settings and delivery limits'
+---
+
+# SMTP Configuration
+
+SMTP (Simple Mail Transfer Protocol) configuration enables the platform to send emails for campaigns, automations, and system notifications.
+
+## Environment Variables
+
+SMTP settings are configured via environment variables in `.env` file.
+
+### Configuration Example
+
+From `.env.example:lines 1-10`:
+
+```bash
+# SMTP Configuration for cPanel
+SMTP_HOST=mail.yourdomain.com
+SMTP_PORT=465
+SMTP_USER=crm@yourdomain.com
+SMTP_PASS=your_password
+SMTP_SECURE=true
+
+# Throttling Configuration
+MAX_EMAILS_PER_HOUR=80
+```
+
+### Variable Definitions
+
+| Variable | Description | Example |
+|----------|-------------|----------|
+| `SMTP_HOST` | Mail server hostname | `mail.yourdomain.com` |
+| `SMTP_PORT` | SMTP port (465 for SSL, 587 for TLS) | `465` |
+| `SMTP_USER` | Email account username | `crm@yourdomain.com` |
+| `SMTP_PASS` | Email account password | `your_password` |
+| `SMTP_SECURE` | Enable SSL/TLS encryption | `true` |
+| `MAX_EMAILS_PER_HOUR` | Hourly sending limit | `80` |
+
+## SMTP Transporter
+
+The server creates a Nodemailer transporter using these settings.
+
+From `server.ts:lines 54-62`:
+
+```typescript
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "localhost",
+    port: parseInt(process.env.SMTP_PORT || "465"),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+    },
+});
+```
+
+<Warning>
+  Never commit `.env` file to version control. It contains sensitive credentials.
+</Warning>
+
+## Provider-Specific Setup
+
+### cPanel Email
+
+Recommended for shared hosting:
+
+```bash
+SMTP_HOST=mail.yourdomain.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your-email@yourdomain.com
+SMTP_PASS=your-cpanel-email-password
+MAX_EMAILS_PER_HOUR=80
+```
+
+<Info>
+  Most cPanel hosts limit to **100 emails/hour**. Set `MAX_EMAILS_PER_HOUR=80` to stay below the limit with buffer.
+</Info>
+
+### Gmail / Google Workspace
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false  # Use TLS
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=app-specific-password
+MAX_EMAILS_PER_HOUR=500
+```
+
+<Warning>
+  Gmail requires an **App Password**, not your regular password. Generate one at [Google Account Security](https://myaccount.google.com/security).
+</Warning>
+
+### SendGrid
+
+```bash
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=apikey
+SMTP_PASS=your-sendgrid-api-key
+MAX_EMAILS_PER_HOUR=3000
+```
+
+### Mailgun
+
+```bash
+SMTP_HOST=smtp.mailgun.org
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=postmaster@yourdomain.mailgun.org
+SMTP_PASS=your-mailgun-password
+MAX_EMAILS_PER_HOUR=1000
+```
+
+## Rate Limiting System
+
+The platform implements **hourly throttling** to prevent SMTP provider rate limit violations.
+
+### How It Works
+
+From `server.ts:lines 116-169`:
+
+<Steps>
+  <Step title="Queue Processing">
+    Background worker runs every **30 seconds** to process pending emails.
+  </Step>
+
+  <Step title="Hourly Counter">
+    Tracks `sentCountThisHour` and resets after 3600000ms (1 hour).
+    
+    ```typescript
+    if (now.getTime() - lastReset.getTime() > 3600000) {
+        db.sentCountThisHour = 0;
+        db.lastResetTime = now.toISOString();
+    }
+    ```
+  </Step>
+
+  <Step title="Calculate Slots">
+    Available slots = `MAX_EMAILS_PER_HOUR - sentCountThisHour`
+    
+    ```typescript
+    const limit = parseInt(process.env.MAX_EMAILS_PER_HOUR || "80");
+    const availableSlots = limit - db.sentCountThisHour;
+    ```
+  </Step>
+
+  <Step title="Batch Processing">
+    Process up to `availableSlots` emails from the queue.
+    
+    ```typescript
+    const pendingEmails = db.queue
+      .filter(e => e.status === 'pending')
+      .slice(0, availableSlots);
+    ```
+  </Step>
+
+  <Step title="Send & Update">
+    Send each email via transporter, update status, increment counter.
+    
+    ```typescript
+    email.status = 'sent';
+    email.sentAt = new Date().toISOString();
+    db.sentCountThisHour++;
+    ```
+  </Step>
+</Steps>
+
+### Queue Status API
+
+Monitor queue health via REST endpoint:
+
+**Endpoint:** `GET /api/email/status`
+
+**Response:**
+
+```json
+{
+  "pending": 45,
+  "sent": 123,
+  "failed": 2,
+  "sentCountThisHour": 35,
+  "limit": 80
+}
+```
+
+From `server.ts:lines 99-112`.
+
+## Email Queue Database
+
+Emails are stored in a JSON file-based queue (production systems should use MySQL/PostgreSQL).
+
+From `server.ts:lines 26-34`:
+
+```typescript
+interface QueuedEmail {
+    id: string;
+    to: string;
+    subject: string;
+    content: string;
+    status: 'pending' | 'sent' | 'failed';
+    createdAt: string;
+    sentAt?: string;
+    error?: string;
+}
+```
+
+**Data persistence:** `data.json` in server root directory.
+
+<Warning>
+  In production, replace file-based queue with a proper database. File I/O is not suitable for high-volume sending.
+</Warning>
+
+## Sending Emails Programmatically
+
+### Add to Queue
+
+**Endpoint:** `POST /api/email/queue`
+
+**Request Body:**
+
+```json
+{
+  "recipients": ["user1@example.com", "user2@example.com"],
+  "subject": "Welcome to Our Community",
+  "content": "<h1>Hello!</h1><p>Thanks for joining.</p>"
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "2 emails added to queue",
+  "queueSize": 47
+}
+```
+
+From `server.ts:lines 72-96`.
+
+### Internal CRM Usage
+
+The CRM interface calls this endpoint:
+
+```typescript
+// From AdminViews.tsx
+await db.emails.sendMass(recipients, subject, content);
+```
+
+This abstracts the API call into the storage layer.
+
+## Testing SMTP Configuration
+
+<Steps>
+  <Step title="Verify Environment Variables">
+    Check that all SMTP variables are set:
+    
+    ```bash
+    echo $SMTP_HOST
+    echo $SMTP_USER
+    ```
+  </Step>
+
+  <Step title="Test with Campaign">
+    1. Create a test campaign
+    2. Set recipient type to "All"
+    3. Send test email to your address
+    4. Check inbox and spam folder
+  </Step>
+
+  <Step title="Monitor Queue">
+    Navigate to CRM → View queue status badge.
+    
+    Should show:
+    - `pending: 1`
+    - After 30s max: `sent: 1`
+  </Step>
+
+  <Step title="Check Logs">
+    View server console output:
+    
+    ```
+    [Queue Worker] Processing 1 emails...
+    [Simulated Send] To: test@example.com
+    ```
+    
+    Or check `data.json` for email status.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Authentication Failed
+
+**Error:** `Invalid login: 535 Authentication failed`
+
+**Solutions:**
+- Verify `SMTP_USER` and `SMTP_PASS` are correct
+- For Gmail: Use App Password, not account password
+- Check provider requires username vs full email address
+
+### Connection Timeout
+
+**Error:** `ETIMEDOUT` or `ECONNREFUSED`
+
+**Solutions:**
+- Verify `SMTP_HOST` is reachable
+- Check firewall allows outbound traffic on `SMTP_PORT`
+- Confirm port (465 for SSL, 587 for TLS)
+- Try toggling `SMTP_SECURE`
+
+### Rate Limit Exceeded
+
+**Error:** `550 Rate limit exceeded`
+
+**Solutions:**
+- Lower `MAX_EMAILS_PER_HOUR` in `.env`
+- Restart server to reload environment variables
+- Wait for hourly counter to reset
+- Upgrade to provider with higher limits
+
+### Emails Not Sending
+
+**Check:**
+1. Queue status shows `pending > 0`
+2. `sentCountThisHour < MAX_EMAILS_PER_HOUR`
+3. Server logs show worker activity
+4. SMTP credentials are valid
+
+### SSL/TLS Certificate Errors
+
+**Error:** `self signed certificate`
+
+**Solutions:**
+- Set `SMTP_SECURE=false` and use port 587 (TLS)
+- Update Node.js to latest version
+- Contact hosting provider for certificate issues
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Rotate Passwords" icon="key">
+    Change SMTP passwords every 90 days.
+  </Card>
+  
+  <Card title="Use Dedicated Account" icon="user-shield">
+    Create a separate email account for system sending.
+  </Card>
+  
+  <Card title="Enable 2FA" icon="lock">
+    Use app-specific passwords with 2FA enabled on provider.
+  </Card>
+  
+  <Card title="Monitor Logs" icon="file-text">
+    Review failed email logs for suspicious activity.
+  </Card>
+</CardGroup>
+
+## Production Recommendations
+
+1. **Replace File-Based Queue**
+   - Use MySQL or PostgreSQL
+   - Implement proper job queue (Bull, BullMQ)
+
+2. **Add Redis Caching**
+   - Cache hourly counter in Redis
+   - Faster than file I/O
+
+3. **Implement Webhook Tracking**
+   - Use provider webhooks for delivery/open events
+   - More reliable than SMTP-only tracking
+
+4. **Scale Queue Processing**
+   - Run multiple workers
+   - Distribute across server instances
+
+5. **Add Retry Logic**
+   - Exponential backoff for failed sends
+   - Dead letter queue for permanent failures
+
+## Related Documentation
+
+- [Email Campaigns](/admin/email-campaigns) - Sending campaigns
+- [Automation Workflows](/admin/automation-workflows) - Automated email sequences
+- [CRM Contacts](/member/crm) - Managing recipients

@@ -1,0 +1,202 @@
+---
+title: Analytics Dashboard
+description: Comprehensive analytics dashboard showing real-time platform metrics and performance indicators
+icon: bar-chart
+---
+
+The Analytics Dashboard provides a real-time overview of platform activity, engagement metrics, and content performance across all modules.
+
+## Dashboard Overview
+
+The main dashboard displays key performance indicators (KPIs) calculated from live data:
+
+### Key Metrics
+
+<CardGroup cols={2}>
+  <Card title="Total Contacts CRM" icon="users">
+    Total number of contacts in the system with active subscription count
+  </Card>
+  <Card title="Email Metrics" icon="envelope">
+    Total emails sent, opened, and click-through rates
+  </Card>
+  <Card title="Open Rate" icon="chart-line">
+    Percentage of emails opened from all sent communications
+  </Card>
+  <Card title="Effectiveness Rate" icon="target">
+    Ratio of subscribed contacts to total registered members
+  </Card>
+</CardGroup>
+
+## Real-Time Data Sources
+
+The dashboard pulls data from multiple platform modules:
+
+```typescript
+const totalContacts = contacts.length;
+const subscribedContacts = contacts.filter(c => c.status === 'Subscribed').length;
+const totalEmailsSent = emailLogs.length;
+const openedEmails = emailLogs.filter(l => l.status === 'Opened' || l.status === 'Clicked').length;
+const openRate = totalEmailsSent > 0 ? Math.round((openedEmails / totalEmailsSent) * 100) : 0;
+const effectivenessRate = totalContacts > 0 ? Math.round((subscribedContacts / totalContacts) * 100) : 0;
+```
+
+## Visualization Charts
+
+### Email Activity Chart
+
+Displays email sending and opening activity over the last 7 days:
+
+- **Data source**: `db.emails.getMetrics().history`
+- **Metrics tracked**: Sent vs Opened emails by date
+- **Chart type**: Area chart with gradient fills
+- **Update frequency**: Real-time on page load
+
+### Contact Growth Chart
+
+Shows monthly contact acquisition trends:
+
+- **Aggregation**: Contacts grouped by `createdAt` month
+- **Display**: Bar chart showing contacts per month (Jan-Dec)
+- **Calculation**: Counts contacts by `new Date(createdAt).getMonth()`
+
+### Top Content Performance
+
+Ranks content by view count:
+
+```typescript
+const topContent = [...allContent]
+  .sort((a, b) => (b.views || 0) - (a.views || 0))
+  .slice(0, 5);
+```
+
+Displays:
+- Content title
+- View count
+- Content type badge (Article, Resource, Page)
+- Percentage bar relative to top item
+
+## Recent Activity Feed
+
+Real-time log of communication events:
+
+<Steps>
+  <Step title="Data Source">
+    Pulls from `db.emails.getLogs()` and cross-references with `db.crm` contacts
+  </Step>
+  <Step title="Display Format">
+    Shows last 8 email logs with contact name, subject, campaign name, status, and timestamp
+  </Step>
+  <Step title="Status Icons">
+    - **Opened/Clicked**: Green checkmark with emerald background
+    - **Bounced/Failed**: Red alert icon with red background
+    - **Delivered**: Blue mail icon with blue background
+  </Step>
+</Steps>
+
+## Analytics Data Structure
+
+### Email Metrics Schema
+
+```typescript
+interface EmailMetrics {
+  totalSent: number;
+  openRate: number;
+  clickRate: number;
+  bounceRate: number;
+  history: {
+    date: string;      // Format: "MM-DD"
+    sent: number;
+    opened: number;
+    clicked: number;
+  }[];
+}
+```
+
+### Content Interaction Tracking
+
+The platform tracks content consumption via:
+
+```typescript
+interface ContentInteraction {
+  id: string;
+  userId?: string;
+  assetId: string;
+  assetName: string;
+  assetType: string;  // 'video', 'audio', 'document', 'Article'
+  tags: string[];
+  timestamp: string;
+}
+```
+
+<Note>
+  View counts are automatically incremented when content is accessed via `db.analytics.trackConsumption()`
+</Note>
+
+## Filtering and Segmentation
+
+Dashboard data can be filtered by:
+
+- **Lists/Segments**: View metrics for specific CRM lists
+- **Date ranges**: Historical data analysis
+- **Content types**: Filter by Article, Resource, Page, Event
+- **Status**: Subscribed, Unsubscribed, Bounced, Pending
+
+### List-Based Metrics
+
+When filtering by list:
+
+```typescript
+const contactsInList = contacts.filter(c => c.listIds?.includes(selectedMetricsList));
+const contactIds = new Set(contactsInList.map(c => c.id));
+const logsForList = allEmailLogs.filter(l => contactIds.has(l.contactId));
+
+// Calculate list-specific rates
+const openRate = Math.round((openedCount / logsForList.length) * 100);
+const clickRate = Math.round((clickedCount / logsForList.length) * 100);
+```
+
+## Data Refresh & Performance
+
+- **Load time**: Dashboard calculates metrics client-side from localStorage
+- **Data limit**: Interaction history capped at 5,000 entries
+- **Contact limit**: CRM optimized for up to 5,000 contacts
+- **Chart rendering**: Uses recharts library with responsive containers
+
+<Accordion title="Understanding Engagement Score">
+  The engagement score (0-100) is calculated per contact based on:
+  - Email open rate
+  - Click-through rate
+  - Recent activity frequency
+  - Profile completion percentage
+  
+  This metric is stored in `contact.engagementScore` and displayed in contact detail panels.
+</Accordion>
+
+## Exporting Dashboard Data
+
+All dashboard metrics can be exported via the browser console:
+
+```javascript
+// Export all email logs
+const logs = db.emails.getLogs();
+console.log(JSON.stringify(logs, null, 2));
+
+// Export contact list with metrics
+const contacts = db.crm.getAll();
+console.log(JSON.stringify(contacts, null, 2));
+```
+
+<Warning>
+  The analytics dashboard displays **simulated data** in the prototype. In production, connect to PostgreSQL via the backend API for persistent storage.
+</Warning>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Engagement Metrics" icon="chart-line" href="/admin/engagement-metrics">
+    Deep dive into member engagement and activity tracking
+  </Card>
+  <Card title="Content Performance" icon="file-chart-line" href="/admin/content-performance">
+    Detailed content analytics and performance metrics
+  </Card>
+</CardGroup>

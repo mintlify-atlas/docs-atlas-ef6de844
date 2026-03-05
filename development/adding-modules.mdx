@@ -1,0 +1,401 @@
+---
+title: "Adding Modules"
+description: "Build new features and extend the CAFH Platform"
+icon: "puzzle"
+---
+
+## Module Architecture
+
+CAFH Platform is organized into modules, each handling a specific domain:
+
+- **CMS Module** - Content management
+- **CRM Module** - Contact and campaign management
+- **Events Module** - Calendar and activities
+- **Meetings Module** - Zoom integration and feedback
+- **Analytics Module** - Metrics and reporting
+- **Journey Module** - Profile wizard and personalization
+
+Each module consists of:
+1. **Types** - Data structures in `types.ts`
+2. **Storage** - CRUD operations in `storage.ts`
+3. **Components** - UI in `components/`
+4. **Routes** - Navigation in `App.tsx`
+
+## Creating a New Module
+
+Let's build a **Donations Module** from scratch.
+
+### Step 1: Define Types
+
+```typescript types.ts
+export interface Donation {
+  id: string;
+  userId: string;
+  userName: string;
+  amount: number;
+  currency: string;
+  paymentMethod: 'Card' | 'PayPal' | 'Transfer';
+  status: 'Pending' | 'Completed' | 'Failed';
+  transactionId?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface DonationCampaign {
+  id: string;
+  title: string;
+  description: string;
+  goalAmount: number;
+  currentAmount: number;
+  currency: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  imageUrl?: string;
+}
+
+export interface DonationSettings {
+  paypalClientId?: string;
+  stripePublicKey?: string;
+  bankAccount?: string;
+  defaultCurrency: string;
+  thankYouMessage: string;
+}
+```
+
+### Step 2: Add Storage
+
+```typescript storage.ts
+const KEYS = {
+  // Existing keys...
+  DONATIONS: 'cafh_donations_v1',
+  DONATION_CAMPAIGNS: 'cafh_donation_campaigns_v1',
+  DONATION_SETTINGS: 'cafh_donation_settings_v1',
+};
+
+let donations: Donation[] = [];
+let donationCampaigns: DonationCampaign[] = [];
+let donationSettings: DonationSettings | null = null;
+
+export const db = {
+  // Existing modules...
+  
+  donations: {
+    // Donations CRUD
+    getAll: (): Donation[] => donations,
+    
+    getByUser: (userId: string): Donation[] =>
+      donations.filter(d => d.userId === userId),
+    
+    getByCampaign: (campaignId: string): Donation[] =>
+      donations.filter(d => d.campaignId === campaignId),
+    
+    create: (donation: Donation): void => {
+      donations.push(donation);
+      localStorage.setItem(KEYS.DONATIONS, JSON.stringify(donations));
+    },
+    
+    updateStatus: (id: string, status: Donation['status'], transactionId?: string): void => {
+      const donation = donations.find(d => d.id === id);
+      if (donation) {
+        donation.status = status;
+        donation.transactionId = transactionId;
+        if (status === 'Completed') {
+          donation.completedAt = new Date().toISOString();
+        }
+        localStorage.setItem(KEYS.DONATIONS, JSON.stringify(donations));
+      }
+    },
+    
+    // Campaigns CRUD
+    campaigns: {
+      getAll: (): DonationCampaign[] => donationCampaigns,
+      
+      getActive: (): DonationCampaign[] =>
+        donationCampaigns.filter(c => c.isActive),
+      
+      create: (campaign: DonationCampaign): void => {
+        donationCampaigns.push(campaign);
+        localStorage.setItem(KEYS.DONATION_CAMPAIGNS, JSON.stringify(donationCampaigns));
+      },
+      
+      update: (id: string, updates: Partial<DonationCampaign>): void => {
+        const index = donationCampaigns.findIndex(c => c.id === id);
+        if (index !== -1) {
+          donationCampaigns[index] = { ...donationCampaigns[index], ...updates };
+          localStorage.setItem(KEYS.DONATION_CAMPAIGNS, JSON.stringify(donationCampaigns));
+        }
+      },
+    },
+    
+    // Settings
+    settings: {
+      get: (): DonationSettings | null => donationSettings,
+      
+      update: (settings: DonationSettings): void => {
+        donationSettings = settings;
+        localStorage.setItem(KEYS.DONATION_SETTINGS, JSON.stringify(settings));
+      },
+    },
+  },
+  
+  init: () => {
+    // Existing initializations...
+    donations = initStorage(KEYS.DONATIONS, []);
+    donationCampaigns = initStorage(KEYS.DONATION_CAMPAIGNS, []);
+    donationSettings = initStorage(KEYS.DONATION_SETTINGS, {
+      defaultCurrency: 'USD',
+      thankYouMessage: 'Thank you for your generous donation!',
+    });
+  },
+};
+```
+
+### Step 3: Create Admin Component
+
+```tsx components/DonationsModule.tsx
+import React, { useState, useEffect } from 'react';
+import { Donation, DonationCampaign } from '../types';
+import { db } from '../storage';
+import { DollarSign, TrendingUp, Users } from 'lucide-react';
+
+export const DonationsAdminView: React.FC = () => {
+  const [donations, setDonations] = useState<Donation[]>([]);
+  const [campaigns, setCampaigns] = useState<DonationCampaign[]>([]);
+  const [activeTab, setActiveTab] = useState<'donations' | 'campaigns'>('donations');
+
+  useEffect(() => {
+    setDonations(db.donations.getAll());
+    setCampaigns(db.donations.campaigns.getAll());
+  }, []);
+
+  const totalRaised = donations
+    .filter(d => d.status === 'Completed')
+    .reduce((sum, d) => sum + d.amount, 0);
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Donations</h1>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-xl shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Raised</p>
+              <p className="text-2xl font-bold">${totalRaised.toLocaleString()}</p>
+            </div>
+            <DollarSign className="w-10 h-10 text-green-600" />
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Donations</p>
+              <p className="text-2xl font-bold">{donations.length}</p>
+            </div>
+            <Users className="w-10 h-10 text-blue-600" />
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Active Campaigns</p>
+              <p className="text-2xl font-bold">{campaigns.filter(c => c.isActive).length}</p>
+            </div>
+            <TrendingUp className="w-10 h-10 text-purple-600" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-xl shadow">
+        <div className="border-b">
+          <button
+            className={`px-6 py-3 ${activeTab === 'donations' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+            onClick={() => setActiveTab('donations')}
+          >
+            Donations
+          </button>
+          <button
+            className={`px-6 py-3 ${activeTab === 'campaigns' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+            onClick={() => setActiveTab('campaigns')}
+          >
+            Campaigns
+          </button>
+        </div>
+
+        <div className="p-6">
+          {activeTab === 'donations' ? (
+            <DonationsTable donations={donations} />
+          ) : (
+            <CampaignsTable campaigns={campaigns} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DonationsTable: React.FC<{ donations: Donation[] }> = ({ donations }) => {
+  return (
+    <table className="w-full">
+      <thead>
+        <tr className="text-left border-b">
+          <th className="pb-2">Donor</th>
+          <th className="pb-2">Amount</th>
+          <th className="pb-2">Method</th>
+          <th className="pb-2">Status</th>
+          <th className="pb-2">Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {donations.map(d => (
+          <tr key={d.id} className="border-b">
+            <td className="py-3">{d.userName}</td>
+            <td>${d.amount}</td>
+            <td>{d.paymentMethod}</td>
+            <td>
+              <span className={`px-2 py-1 rounded text-xs ${
+                d.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                d.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {d.status}
+              </span>
+            </td>
+            <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+```
+
+### Step 4: Add Routes
+
+```tsx App.tsx
+import { DonationsAdminView } from './components/DonationsModule';
+
+const App: React.FC = () => {
+  return (
+    <HashRouter>
+      <Routes>
+        {/* Existing routes... */}
+        
+        <Route 
+          path="/admin/donations" 
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPER_ADMIN]}>
+              <AdminLayout>
+                <DonationsAdminView />
+              </AdminLayout>
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </HashRouter>
+  );
+};
+```
+
+### Step 5: Add to Admin Menu
+
+```tsx components/Layout.tsx
+import { DollarSign } from 'lucide-react';
+
+const AdminLayout: React.FC = () => {
+  return (
+    <div>
+      <aside>
+        <nav>
+          {/* Existing menu items... */}
+          
+          <Link to="/admin/donations" className="flex items-center gap-3 px-4 py-3">
+            <DollarSign className="w-5 h-5" />
+            <span>Donations</span>
+          </Link>
+        </nav>
+      </aside>
+    </div>
+  );
+};
+```
+
+## Module Best Practices
+
+<Accordion title="Keep modules independent">
+  Modules should have minimal dependencies on each other. Use well-defined interfaces at module boundaries.
+</Accordion>
+
+<Accordion title="Follow naming conventions">
+  - Types: `DonationCampaign`, `DonationSettings`
+  - Storage keys: `cafh_donations_v1`
+  - Components: `DonationsAdminView`, `DonationCard`
+  - Routes: `/admin/donations`
+</Accordion>
+
+<Accordion title="Add analytics">
+  Track key metrics for your module:
+  ```typescript
+  db.donations.getMetrics = () => ({
+    totalRaised: donations.reduce((sum, d) => sum + d.amount, 0),
+    averageDonation: donations.length ? totalRaised / donations.length : 0,
+    completionRate: donations.filter(d => d.status === 'Completed').length / donations.length,
+  });
+  ```
+</Accordion>
+
+<Accordion title="Test thoroughly">
+  - Test CRUD operations
+  - Verify data persistence
+  - Check edge cases (empty state, errors)
+  - Test with different user roles
+</Accordion>
+
+## Extending Existing Modules
+
+To add features to existing modules:
+
+1. **Add types** - Extend interfaces in `types.ts`
+2. **Add methods** - Add to `db.module` in `storage.ts`
+3. **Update UI** - Modify existing components
+4. **Add routes** - If needed, add new routes in `App.tsx`
+
+Example: Add export to CRM:
+
+```typescript storage.ts
+export const db = {
+  crm: {
+    // Existing methods...
+    
+    exportToCSV: (): string => {
+      const contacts = db.crm.contacts.getAll();
+      const csv = [
+        'Name,Email,Phone,Status',
+        ...contacts.map(c => `${c.name},${c.email},${c.phone},${c.status}`)
+      ].join('\n');
+      return csv;
+    },
+  },
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Extending Types" icon="plus" href="/development/extending-types">
+    Learn about TypeScript types
+  </Card>
+  <Card title="Storage System" icon="database" href="/development/storage-system">
+    Understand data persistence
+  </Card>
+  <Card title="Admin Guide" icon="shield" href="/admin/cms-overview">
+    See how modules work from admin perspective
+  </Card>
+</CardGroup>

@@ -1,0 +1,497 @@
+---
+title: 'Calendar Management'
+description: 'Manage calendar events and community activities'
+---
+
+# Calendar Management
+
+Manage all community events and activities through a comprehensive calendar system with multiple views and categorization.
+
+## Activity Events System
+
+The calendar manages **Activity Events** which are distinct from Zoom meetings but can be synchronized.
+
+From `types.ts:lines 716-737`:
+
+```typescript
+interface ActivityEvent {
+  id: string;
+  title: string;
+  description: string;       // Rich HTML content
+  category: string;          // ActivityCategory ID
+  tags: string[];
+  startDate: string;         // YYYY-MM-DD
+  endDate: string;
+  startTime: string;         // HH:MM
+  endTime: string;
+  modality: 'Virtual' | 'Presencial' | 'Híbrida';
+  organizerContactId?: string;
+  status: 'Borrador' | 'Publicado' | 'Archivado';
+  imageUrl?: string;
+  seo?: SEOConfig;
+  featuredInDashboard: boolean;
+  linkedMeetingId?: string;   // Sync with Zoom meeting
+  zoomUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## Creating Activities
+
+Navigate to **Calendar Module → Actividades** tab.
+
+<Steps>
+  <Step title="Open Activity Form">
+    Click **+ Nueva Actividad** in the toolbar.
+  </Step>
+
+  <Step title="Basic Information">
+    Fill in required fields:
+    
+    - **Title**: Event name
+    - **Description**: Rich HTML content (supports formatting)
+    - **Start Date** / **End Date**: Date range
+    - **Start Time** / **End Time**: Time range (24-hour format)
+  </Step>
+
+  <Step title="Configure Modality">
+    Choose event type:
+    
+    | Modality | Description | Requirements |
+    |----------|-------------|-------------|
+    | `Virtual` | Online only | Zoom URL optional |
+    | `Presencial` | In-person | Physical location |
+    | `Híbrida` | Both virtual and in-person | Zoom URL + location |
+  </Step>
+
+  <Step title="Categorize">
+    Assign a category (configured in Categories tab):
+    
+    - Each category has a color and icon
+    - Used for visual organization in calendar views
+  </Step>
+
+  <Step title="Set Organizer">
+    Select organizer from **admin users** in the system:
+    
+    ```typescript
+    // Only users with role ADMIN or SUPER_ADMIN
+    const admins = allUsers.filter(u => 
+      u.role === UserRole.ADMIN || 
+      u.role === UserRole.SUPER_ADMIN
+    );
+    ```
+    
+    From `CalendarModule.tsx:lines 111-112`.
+  </Step>
+
+  <Step title="Add Tags">
+    Enter tags for filtering and search:
+    
+    - Type tag name
+    - Press Enter to add
+    - Click X to remove
+  </Step>
+
+  <Step title="Configure Status">
+    Set publication status:
+    
+    - **Borrador**: Not visible to members
+    - **Publicado**: Live and visible
+    - **Archivado**: Hidden but preserved
+  </Step>
+
+  <Step title="Feature in Dashboard">
+    Toggle **"Destacar en Novedades para Ti"**:
+    
+    - When enabled, appears in member dashboard
+    - Sorted by date
+    - Shows in "News for You" widget
+  </Step>
+</Steps>
+
+## Calendar Views
+
+The calendar tab provides three visualization modes.
+
+### Day View
+
+Shows all events for a single day in timeline format.
+
+From `CalendarModule.tsx:lines 647-677`:
+
+```typescript
+const DiaView = () => {
+  const ds = isoDate(cursor);
+  const todayEvs = eventsOn(ds);
+  return (
+    // Hour-by-hour timeline with events
+  );
+};
+```
+
+**Features:**
+- Events displayed with time blocks
+- Click event to view details
+- Color-coded by category
+
+### Week View
+
+Displays 7-day grid with events.
+
+From `CalendarModule.tsx:lines 680-720`:
+
+```typescript
+const SemanaView = () => {
+  const weekStart = new Date(cursor);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  // ...
+};
+```
+
+**Features:**
+- 7 columns (Sunday–Saturday)
+- Today highlighted with indigo accent
+- Multi-day events span columns
+
+### Month View
+
+Full monthly calendar grid.
+
+From `CalendarModule.tsx:lines 723-768`:
+
+```typescript
+const MesView = () => {
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Build cells array with null padding
+};
+```
+
+**Features:**
+- Shows up to 3 events per day
+- "+X más" indicator for additional events
+- Color-coded dots for category
+- Today highlighted
+
+### Navigation Controls
+
+Use navigation bar to move between dates:
+
+- **← Button**: Previous day/week/month
+- **Hoy Button**: Jump to today
+- **→ Button**: Next day/week/month
+- **View Toggles**: Switch between Día, Semana, Mes
+
+From `CalendarModule.tsx:lines 772-795`.
+
+## Activity Categories
+
+Organize activities by type using custom categories.
+
+### Category Structure
+
+From `types.ts:lines 708-712`:
+
+```typescript
+interface ActivityCategory {
+  id: string;
+  name: string;
+  color: string;   // hex code
+  icon: string;    // Lucide icon name
+}
+```
+
+### Managing Categories
+
+Navigate to **Calendar Module → Categorías** tab.
+
+<Steps>
+  <Step title="Create Category">
+    In the "Nueva Categoría" card:
+    
+    - **Nombre**: Category name (e.g., "Meditación", "Retiro")
+    - **Color**: Click color picker or enter hex code
+  </Step>
+
+  <Step title="Save Category">
+    Click **Crear categoría**. Category appears in the right panel.
+  </Step>
+
+  <Step title="Edit Category">
+    Click pencil icon on existing category to modify.
+  </Step>
+
+  <Step title="Delete Category">
+    Click trash icon. 
+    
+    <Warning>
+      Deleting a category does not delete activities, but they will lose their category association.
+    </Warning>
+  </Step>
+</Steps>
+
+From `CalendarModule.tsx:lines 326-402`.
+
+## Event Status Workflow
+
+### Status Colors
+
+From `CalendarModule.tsx:lines 32-35`:
+
+```typescript
+const STATUS_CFG = {
+  Borrador: { color: 'bg-slate-100 text-slate-500 border-slate-200' },
+  Publicado: { color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  Archivado: { color: 'bg-orange-100 text-orange-700 border-orange-200' },
+};
+```
+
+### Quick Toggle
+
+In the activities list, click the toggle icon to switch between:
+- **Borrador** ⇄ **Publicado**
+
+From `CalendarModule.tsx:lines 137-141`:
+
+```typescript
+const handleToggleStatus = (ev: ActivityEvent) => {
+  const next = ev.status === 'Publicado' ? 'Borrador' : 'Publicado';
+  db.activities.save({ ...ev, status: next });
+  load();
+};
+```
+
+## Modality Configuration
+
+From `CalendarModule.tsx:lines 26-30`:
+
+```typescript
+const MODALITY_CFG = {
+  Virtual: { icon: <Video />, color: 'bg-blue-100 text-blue-700' },
+  Presencial: { icon: <MapPin />, color: 'bg-green-100 text-green-700' },
+  Híbrida: { icon: <Globe />, color: 'bg-purple-100 text-purple-700' },
+};
+```
+
+### Virtual Events
+
+When `modality === 'Virtual'`:
+
+- **Zoom URL** field appears in form
+- Can link to existing Zoom meeting via `linkedMeetingId`
+- Syncs with Meetings Module
+
+From `CalendarModule.tsx:lines 257-260`:
+
+```tsx
+{form.modality === 'Virtual' || form.modality === 'Híbrida' ? (
+  <SField label="URL de Zoom">
+    <input value={form.zoomUrl || ''} ... />
+  </SField>
+) : null}
+```
+
+## Filtering and Search
+
+Activities list supports filtering:
+
+- **Search**: Filter by title (case-insensitive)
+- **Status Filter**: Dropdown to filter by Borrador/Publicado/Archivado/All
+
+From `CalendarModule.tsx:lines 149-151`:
+
+```typescript
+const filtered = events
+  .filter(e => filterStatus === 'all' || e.status === filterStatus)
+  .filter(e => !search || e.title.toLowerCase().includes(search.toLowerCase()));
+```
+
+## Mass Email Distribution
+
+Navigate to **Calendar Module → Envío Masivo** tab.
+
+### Sending Event Invitations
+
+<Steps>
+  <Step title="Select Activity">
+    Choose a **published** activity from dropdown.
+    
+    System auto-populates:
+    - **Subject**: "Te invitamos: {title}"
+    - **Body**: Template message with event details
+  </Step>
+
+  <Step title="Customize Message">
+    Edit subject and body text.
+    
+    Preview shows:
+    - Event image (if provided)
+    - Title, date, time, modality
+    - Description excerpt
+  </Step>
+
+  <Step title="Send to Community">
+    Click **Enviar a toda la comunidad**.
+    
+    Recipients: All contacts in CRM database.
+    
+    ```typescript
+    const recipients = contacts.map(c => c.email);
+    ```
+  </Step>
+</Steps>
+
+From `CalendarModule.tsx:lines 408-485`.
+
+<Info>
+  Emails are processed through the same queue system as campaigns, respecting `MAX_EMAILS_PER_HOUR` limit.
+</Info>
+
+## Analytics Dashboard
+
+Navigate to **Calendar Module → Analytics** tab to view metrics.
+
+### Key Performance Indicators
+
+From `CalendarModule.tsx:lines 507-512`:
+
+```typescript
+const kpis = [
+  { label: 'Actividades publicadas', value: published, icon: <CheckCircle2 /> },
+  { label: 'Sesiones virtuales', value: virtual, icon: <Video /> },
+  { label: 'Valoración promedio', value: avgRating + ' ⭐', icon: <Star /> },
+  { label: 'Evaluaciones recibidas', value: responses.length, icon: <FileText /> },
+];
+```
+
+### Participation Ranking
+
+Shows top 10 members by points:
+
+- **Points**: Accumulated from participation + badges
+- **Participations**: Number of events attended
+- **Badges**: Gamification awards received
+
+Data source: `db.gamification.getRanking()` (see [Gamification](/admin/gamification)).
+
+### Modality Distribution
+
+Bar chart showing breakdown:
+
+```typescript
+['Virtual', 'Presencial', 'Híbrida'].map(mod => {
+  const count = events.filter(e => e.modality === mod).length;
+  const pct = Math.round((count / events.length) * 100);
+  // ...
+});
+```
+
+From `CalendarModule.tsx:lines 558-574`.
+
+### Recent Feedback
+
+Displays last 5 post-event evaluations with star ratings.
+
+See [Feedback System](/admin/feedback-system) for details.
+
+## Synchronization with Zoom Meetings
+
+Activities with `modality: 'Virtual'` can link to Zoom meetings.
+
+### Bidirectional Sync
+
+- **Activity → Meeting**: Setting `zoomUrl` creates/updates `CalendarEvent`
+- **Meeting → Activity**: Creating Zoom meeting can auto-create `ActivityEvent`
+
+Sync fields:
+
+```typescript
+interface ActivityEvent {
+  linkedMeetingId?: string;  // Points to CalendarEvent.id
+  zoomUrl?: string;          // Zoom meeting URL
+}
+
+interface CalendarEvent {
+  linkedActivityId?: string;  // Points to ActivityEvent.id
+  meetingUrl?: string;        // Same as zoomUrl
+}
+```
+
+From `types.ts:lines 245-247` and `types.ts:lines 732-733`.
+
+<Warning>
+  Manual sync is not automatic. When updating one side, remember to update the linked record.
+</Warning>
+
+## SEO Configuration
+
+Activities support full SEO metadata.
+
+From `types.ts:lines 69-75`:
+
+```typescript
+interface SEOConfig {
+  title: string;
+  description: string;
+  keywords: string[];
+  ogImage?: string;
+  schemaType?: string;  // e.g., 'Event'
+}
+```
+
+Configure in activity form advanced section (if implemented in UI).
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Categories" icon="tag">
+    Create categories for each activity type (Meditation, Workshop, Retreat).
+  </Card>
+  
+  <Card title="Publish Early" icon="calendar-check">
+    Publish events at least 1 week in advance for member planning.
+  </Card>
+  
+  <Card title="Feature Strategically" icon="star">
+    Only feature 3-5 activities at a time in dashboard to avoid clutter.
+  </Card>
+  
+  <Card title="Use Tags for Search" icon="search">
+    Add descriptive tags ("beginner", "advanced", "online") for filtering.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Activity Not Appearing in Calendar
+
+- Verify status is `Publicado`
+- Check date is within viewed month/week
+- Ensure category exists and is assigned
+
+### Featured Activity Not in Dashboard
+
+- Confirm `featuredInDashboard: true`
+- Check member's profile tags match activity tags (if filtering enabled)
+- Verify activity date is current or future
+
+### Zoom URL Not Working
+
+- Ensure URL starts with `https://zoom.us/j/`
+- Check URL is complete with meeting ID
+- Verify linked meeting exists in Meetings Module
+
+## Related Documentation
+
+- [Zoom Integration](/admin/zoom-integration) - Virtual meeting setup
+- [Feedback System](/admin/feedback-system) - Post-event surveys
+- [Gamification](/admin/gamification) - Participation rewards

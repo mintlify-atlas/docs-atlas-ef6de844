@@ -1,0 +1,442 @@
+---
+title: Change Log
+description: Audit trail tracking all changes to content, settings, and configurations with rollback capability
+icon: history
+---
+
+The Change Log module provides a comprehensive audit trail of all administrative actions across the platform.
+
+## Overview
+
+Every significant change in the admin panel is automatically logged with:
+
+- **Who** made the change (user ID and name)
+- **What** was changed (section and details)
+- **When** it happened (ISO timestamp)
+- **Action type** (Create, Update, Delete, Rollback)
+- **Previous state** (for rollback functionality)
+
+## ChangeLog Schema
+
+```typescript
+interface ChangeLog {
+  id: string;
+  userId: string;           // Admin who made the change
+  userName: string;         // Display name for logs
+  section: string;          // Area of platform (e.g., 'Home > Hero')
+  action: 'Create' | 'Update' | 'Delete' | 'Rollback';
+  timestamp: string;        // ISO 8601 datetime
+  details: string;          // Human-readable description
+  previousState?: string;   // JSON stringified previous state
+}
+```
+
+## Tracked Sections
+
+Changes are logged for:
+
+<CardGroup cols={2}>
+  <Card title="Home Configuration" icon="home">
+    Hero settings, search items, three columns, blog config
+  </Card>
+  <Card title="Custom Pages" icon="file">
+    WYSIWYG page creation, updates, section changes
+  </Card>
+  <Card title="Mega Menu" icon="bars">
+    Navigation structure changes
+  </Card>
+  <Card title="Footer" icon="align-bottom">
+    Footer columns, social links, subscription settings
+  </Card>
+  <Card title="Media Library" icon="image">
+    Asset uploads, deletions, folder changes
+  </Card>
+  <Card title="CRM & Contacts" icon="users">
+    List creation, contact imports, bulk actions
+  </Card>
+  <Card title="Campaigns" icon="envelope">
+    Campaign creation, sends, status changes
+  </Card>
+  <Card title="Automations" icon="robot">
+    Workflow creation, activation, modifications
+  </Card>
+  <Card title="Journey/Profiles" icon="compass">
+    Wizard questions, profile types, splash config
+  </Card>
+  <Card title="Site Settings" icon="settings">
+    Global settings, SMTP, notifications
+  </Card>
+</CardGroup>
+
+## Logging Implementation
+
+### Creating Log Entries
+
+```typescript
+db.cms.logChange(
+  section: string,
+  action: 'Create' | 'Update' | 'Delete' | 'Rollback',
+  details: string,
+  previousState?: any
+);
+```
+
+### Example Usage
+
+<CodeGroup>
+```typescript Home Config Update
+// Before saving
+const prev = db.cms.getHomeConfig();
+
+// Save changes
+localStorage.setItem(KEYS.HOME_CONFIG, JSON.stringify(newConfig));
+
+// Log the change
+db.cms.logChange(
+  'Home', 
+  'Update', 
+  'Actualización de configuración de Home', 
+  prev
+);
+```
+
+```typescript Page Creation
+const newPage = {
+  id: 'p_123',
+  title: 'New Page',
+  slug: 'new-page',
+  sections: []
+};
+
+db.cms.savePage(newPage);
+
+// Auto-logged by savePage():
+db.cms.logChange(
+  `Página: ${newPage.title}`,
+  'Create',
+  `Guardado de página ${newPage.slug}`,
+  null
+);
+```
+
+```typescript Page Deletion
+const page = pages.find(p => p.id === id);
+const updated = pages.filter(p => p.id !== id);
+
+localStorage.setItem(KEYS.CUSTOM_PAGES, JSON.stringify(updated));
+
+db.cms.logChange(
+  `Página: ${page?.title}`,
+  'Delete',
+  `Eliminación de página ${page?.slug}`,
+  page  // Store full page for potential rollback
+);
+```
+</CodeGroup>
+
+## Log Entry Structure
+
+### Storage
+
+```typescript
+const KEYS = {
+  CHANGE_LOG: 'cafh_changelog_v1'
+};
+
+// Limited to last 100 entries
+logs.unshift(newLog);
+localStorage.setItem(KEYS.CHANGE_LOG, JSON.stringify(logs.slice(0, 100)));
+```
+
+### Retrieval
+
+```typescript
+const logs = db.cms.getChangeLogs();
+// Returns: ChangeLog[] sorted by timestamp (newest first)
+```
+
+## Log Details Format
+
+### Section Naming Convention
+
+**Format:** `{Module} > {Submodule}` or `{EntityType}: {EntityName}`
+
+**Examples:**
+- `Home > Hero`
+- `Página: Quiénes Somos`
+- `Mega Menú`
+- `CRM > Lista: Newsletter Subscribers`
+- `Campaña: Bienvenida 2024`
+- `Automatización: Follow-up Sequence`
+
+### Details String
+
+Human-readable description of what changed:
+
+```typescript
+// Good examples
+"Actualización de configuración de Home"
+"Guardado de página quienes-somos"
+"Eliminación de página historia"
+"Creación de lista Newsletter"
+"Envío de campaña a 1,245 contactos"
+"Activación de automatización Welcome Flow"
+
+// Bad examples (too vague)
+"Update"
+"Changed"
+"Modified"
+```
+
+## Rollback Functionality
+
+### Storing Previous State
+
+The `previousState` field stores JSON snapshot:
+
+```typescript
+const prev = db.cms.getHomeConfig();
+
+// ... make changes ...
+
+db.cms.logChange(
+  'Home',
+  'Update',
+  'Hero background updated',
+  prev  // Full HomeConfig object
+);
+```
+
+### Rollback Implementation
+
+```typescript
+const rollback = (logEntry: ChangeLog) => {
+  if (!logEntry.previousState) {
+    alert('No previous state available for rollback');
+    return;
+  }
+  
+  const previousData = JSON.parse(logEntry.previousState);
+  
+  // Restore previous state
+  if (logEntry.section === 'Home') {
+    db.cms.updateHomeConfig(previousData);
+  } else if (logEntry.section.startsWith('Página:')) {
+    db.cms.savePage(previousData);
+  }
+  // ... handle other sections
+  
+  // Log the rollback action
+  db.cms.logChange(
+    logEntry.section,
+    'Rollback',
+    `Rollback to state from ${logEntry.timestamp}`,
+    null  // No previous state for rollback entries
+  );
+};
+```
+
+<Warning>
+  Rollback only works if `previousState` was stored. Some operations (like Create or Delete) may not have meaningful rollback data.
+</Warning>
+
+## Log Display UI
+
+### Table View
+
+```tsx
+<div className="divide-y">
+  {logs.map(log => (
+    <div key={log.id} className="p-4 hover:bg-slate-50 transition-colors">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold">
+            {log.userName[0]}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-800">{log.userName}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                log.action === 'Create' ? 'bg-green-100 text-green-700' :
+                log.action === 'Update' ? 'bg-blue-100 text-blue-700' :
+                log.action === 'Delete' ? 'bg-red-100 text-red-700' :
+                'bg-purple-100 text-purple-700'
+              }`}>
+                {log.action}
+              </span>
+              <span className="text-xs text-slate-400">{log.section}</span>
+            </div>
+            <p className="text-sm text-slate-600 mt-1">{log.details}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-slate-400">
+            {new Date(log.timestamp).toLocaleString()}
+          </p>
+          {log.previousState && (
+            <button className="text-xs text-cafh-indigo hover:underline mt-1">
+              Rollback
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+```
+
+### Filter Options
+
+```typescript
+const [filterAction, setFilterAction] = useState<string>('all');
+const [filterSection, setFilterSection] = useState<string>('all');
+const [filterUser, setFilterUser] = useState<string>('all');
+
+const filteredLogs = logs
+  .filter(log => filterAction === 'all' || log.action === filterAction)
+  .filter(log => filterSection === 'all' || log.section.includes(filterSection))
+  .filter(log => filterUser === 'all' || log.userId === filterUser);
+```
+
+## Auto-Logging Triggers
+
+### CMS Operations
+
+```typescript
+// Home config
+db.cms.updateHomeConfig(config);
+// ✅ Auto-logs with previous state
+
+// Pages
+db.cms.savePage(page);
+// ✅ Auto-logs Create or Update
+
+db.cms.deletePage(id);
+// ✅ Auto-logs Delete with page data
+
+// Menu
+db.cms.updateMenu(menu);
+// ✅ Auto-logs with previous structure
+```
+
+### Manual Logging
+
+For operations outside CMS module:
+
+```typescript
+// CRM list creation
+const newList = db.crm.addList({ name: 'Newsletter', description: '...' });
+db.cms.logChange(
+  `CRM > Lista: ${newList.name}`,
+  'Create',
+  `Creación de lista ${newList.name}`,
+  null
+);
+
+// Campaign send
+const result = await db.campaigns.launch(campaignId);
+db.cms.logChange(
+  `Campaña: ${campaign.name}`,
+  'Update',
+  `Envío de campaña a ${result.recipientCount} contactos`,
+  campaign
+);
+```
+
+## User Attribution
+
+### Getting Current User
+
+```typescript
+const user = db.auth.getCurrentUser();
+// Returns current logged-in admin
+
+const newLog: ChangeLog = {
+  userId: user?.id || 'system',
+  userName: user?.name || 'Sistema',
+  // ...
+};
+```
+
+### System Actions
+
+For automated actions (cron jobs, system migrations):
+
+```typescript
+db.cms.logChange(
+  'Sistema',
+  'Update',
+  'Migración automática de datos v2.0',
+  null
+);
+// userName will be 'Sistema'
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Store Previous State">
+    For Update and Delete actions, always pass the previous state as the 4th argument. This enables rollback functionality.
+  </Accordion>
+  
+  <Accordion title="Use Descriptive Details">
+    Write details that would make sense to another admin reviewing logs later. Include key identifiers like names, IDs, or counts.
+  </Accordion>
+  
+  <Accordion title="Consistent Section Naming">
+    Use the established naming patterns:
+    - Modules: "Home", "CRM", "Campaigns"
+    - Entities: "Página: {title}", "Lista: {name}"
+    - Hierarchical: "Home > Hero", "CRM > Contactos"
+  </Accordion>
+  
+  <Accordion title="Don't Log Sensitive Data">
+    Never store passwords, API keys, or PII in log details or previous state. Sanitize before logging.
+  </Accordion>
+  
+  <Accordion title="Monitor Log Size">
+    The system keeps only 100 most recent logs. For production, implement server-side logging with pagination and archiving.
+  </Accordion>
+</AccordionGroup>
+
+## Exporting Logs
+
+Export audit trail for compliance:
+
+```javascript
+// Export to console
+const logs = db.cms.getChangeLogs();
+console.table(logs.map(l => ({
+  timestamp: l.timestamp,
+  user: l.userName,
+  action: l.action,
+  section: l.section,
+  details: l.details
+})));
+
+// Export to CSV
+const csv = [
+  'Timestamp,User,Action,Section,Details',
+  ...logs.map(l => 
+    `"${l.timestamp}","${l.userName}","${l.action}","${l.section}","${l.details}"`
+  )
+].join('\n');
+
+const blob = new Blob([csv], { type: 'text/csv' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = `cafh-changelog-${Date.now()}.csv`;
+a.click();
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Site Settings" icon="settings" href="/admin/site-settings">
+    View and configure all platform settings
+  </Card>
+  <Card title="Admin Users" icon="user-shield" href="/admin/user-management">
+    Manage administrator accounts and permissions
+  </Card>
+</CardGroup>

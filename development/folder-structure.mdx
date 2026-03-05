@@ -1,0 +1,360 @@
+---
+title: "Folder Structure"
+description: "Project organization and file layout"
+icon: "folder-tree"
+---
+
+## Project Structure
+
+```
+cafh/
+├── components/              # React components
+│   ├── AdminViews.tsx       # Admin dashboard views
+│   ├── PublicViews.tsx      # Public-facing pages
+│   ├── UserViews.tsx        # Member dashboard
+│   ├── InternalViews.tsx    # Static content pages
+│   ├── Layout.tsx           # Header, footer, layout
+│   ├── MeetingsModule.tsx   # Zoom meetings module
+│   ├── CalendarModule.tsx   # Activities calendar
+│   ├── AutomationFlowBuilder.tsx  # Workflow builder
+│   └── JourneyAndSettings.tsx     # Profile wizard config
+│
+├── App.tsx                 # Main app component with routing
+├── index.tsx              # React entry point
+├── index.html             # HTML template
+│
+├── types.ts               # TypeScript definitions (50+ interfaces)
+├── storage.ts             # Data persistence layer
+├── constants.ts           # Configuration and mock data
+│
+├── server.ts              # Express backend + email queue
+│
+├── package.json           # Dependencies and scripts
+├── tsconfig.json          # TypeScript configuration
+├── vite.config.ts         # Vite build configuration
+├── .env.example           # Environment variable template
+├── .gitignore             # Git ignore patterns
+└── README.md              # Project documentation
+```
+
+## Core Files
+
+### App.tsx
+
+Main application component with routing logic.
+
+```tsx App.tsx {6-7,17-19}
+import { HashRouter, Routes, Route } from 'react-router-dom';
+import { db } from './storage';
+
+const App: React.FC = () => {
+  useEffect(() => {
+    db.init();  // Initialize localStorage on mount
+  }, []);
+
+  return (
+    <HashRouter>
+      <Routes>
+        {/* PUBLIC ROUTES */}
+        <Route path="/" element={<HomeView />} />
+        <Route path="/login" element={<LoginView />} />
+        
+        {/* PROTECTED ROUTES */}
+        <Route path="/admin" element={
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPER_ADMIN]}>
+            <AdminLayout><DashboardView /></AdminLayout>
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </HashRouter>
+  );
+};
+```
+
+### types.ts
+
+Complete type system with 50+ interfaces.
+
+```typescript types.ts
+// User & Auth
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  EDITOR = 'EDITOR',
+  MEMBER = 'MEMBER',
+  GUEST = 'GUEST'
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatarUrl: string;
+  tenantId: string;
+  interests: string[];
+  joinedDate: string;
+}
+
+// CMS Types
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  imageUrl: string;
+  date: string;
+  author: string;
+  content?: string;
+  seo?: SEOConfig;
+}
+
+export interface CustomPage {
+  id: string;
+  slug: string;
+  title: string;
+  status: 'Published' | 'Draft';
+  sections: PageSection[];
+  seo: SEOConfig;
+}
+
+// CRM Types
+export interface Contact {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: 'Subscribed' | 'Unsubscribed' | 'Bounced';
+  tags: string[];
+  engagementScore?: number;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  subject: string;
+  content: string;
+  status: 'Draft' | 'Scheduled' | 'Sent';
+  recipientType: 'all' | 'subscribed' | 'list';
+  listId?: string;
+  metrics: EmailMetrics;
+}
+
+// And 40+ more interfaces...
+```
+
+### storage.ts
+
+Data persistence layer using localStorage.
+
+```typescript storage.ts {3-10,15-27}
+// Storage Keys (35+ keys)
+const KEYS = {
+  BLOG: 'cafh_blog_v1',
+  EVENTS: 'cafh_events_v1',
+  CONTACTS: 'cafh_contacts_v1',
+  CAMPAIGNS: 'cafh_campaigns_v1',
+  AUTOMATIONS: 'cafh_automations_v1',
+  MEDIA: 'cafh_media_v1',
+  // ... 30 more keys
+};
+
+// Helper function
+const initStorage = <T>(key: string, initialData: T): T => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) {
+      localStorage.setItem(key, JSON.stringify(initialData));
+      return initialData;
+    }
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error(`Error accessing storage for ${key}`, e);
+    return initialData;
+  }
+};
+
+// Database API
+export const db = {
+  init: () => { /* Initialize all storage */ },
+  auth: { /* Auth methods */ },
+  blog: { /* Blog CRUD */ },
+  crm: { /* CRM operations */ },
+  // ... 15+ more modules
+};
+```
+
+### server.ts
+
+Express backend with email queue.
+
+```typescript server.ts {5-11,24-35}
+import express from "express";
+import nodemailer from "nodemailer";
+import { createServer as createViteServer } from "vite";
+
+const app = express();
+const PORT = 3000;
+
+app.use(cors());
+app.use(express.json());
+
+// Email transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || "465"),
+  secure: process.env.SMTP_SECURE === "true",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+// API Routes
+app.post("/api/email/queue", (req, res) => {
+  const { recipients, subject, content } = req.body;
+  // Add to queue in data.json
+  db.queue.push(...newEmails);
+  saveDB(db);
+  res.json({ message: `${newEmails.length} emails queued` });
+});
+
+// Queue worker (runs every 30s)
+setInterval(async () => {
+  const pendingEmails = db.queue.filter(e => e.status === 'pending');
+  for (const email of pendingEmails) {
+    await transporter.sendMail({ /* ... */ });
+  }
+}, 30000);
+```
+
+## Components Directory
+
+### AdminViews.tsx
+
+Contains 10 admin dashboard views:
+- DashboardView - Overview with KPIs
+- CRMView - Contact management
+- AutomationsView - Workflow builder
+- CMSView - Content management
+- MediaLibraryView - Asset management
+- AnalyticsView - Metrics and charts
+- JourneyView - Profile wizard config
+- SettingsView - Site configuration
+
+### PublicViews.tsx
+
+Public-facing components:
+- HomeView - Landing page
+- LoginView - Authentication
+- DynamicPageView - CMS-powered pages
+
+### UserViews.tsx
+
+Member portal:
+- MemberDashboard - Personalized member view
+
+### MeetingsModule.tsx
+
+Zoom integration (Module 1):
+- Meeting management
+- Feedback system
+- Badge awards
+- Participation tracking
+
+### CalendarModule.tsx
+
+Activity calendar (Module 2):
+- Event CRUD
+- Category management
+- Calendar views
+
+## Configuration Files
+
+### tsconfig.json
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+```
+
+### vite.config.ts
+
+```typescript vite.config.ts
+export default defineConfig({
+  server: {
+    port: 3000,
+    host: '0.0.0.0',
+  },
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    }
+  }
+});
+```
+
+## Data Files
+
+### data.json
+
+Email queue database (created at runtime):
+
+```json data.json
+{
+  "queue": [
+    {
+      "id": "abc123",
+      "to": "user@example.com",
+      "subject": "Welcome",
+      "content": "<p>Hello</p>",
+      "status": "pending",
+      "createdAt": "2024-03-05T10:00:00Z"
+    }
+  ],
+  "sentCountThisHour": 5,
+  "lastResetTime": "2024-03-05T10:00:00Z"
+}
+```
+
+## Build Output
+
+After running `npm run build`:
+
+```
+dist/
+├── index.html
+├── assets/
+│   ├── index-[hash].js
+│   ├── index-[hash].css
+│   └── vendor-[hash].js
+└── vite.svg
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Storage System" icon="database" href="/development/storage-system">
+    Deep dive into data persistence
+  </Card>
+  <Card title="Build Process" icon="hammer" href="/development/build-process">
+    Production build configuration
+  </Card>
+  <Card title="Adding Modules" icon="puzzle" href="/development/adding-modules">
+    Extend the platform
+  </Card>
+  <Card title="Data Model" icon="diagram" href="/concepts/data-model">
+    Explore all data types
+  </Card>
+</CardGroup>

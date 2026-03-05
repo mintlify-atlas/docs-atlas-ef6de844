@@ -1,0 +1,343 @@
+---
+title: "Storage System"
+description: "Browser-based data persistence architecture"
+icon: "database"
+---
+
+## Overview
+
+CAFH Platform uses **localStorage** for data persistence. This provides a simple, serverless architecture perfect for MVPs and prototypes.
+
+<Info>
+  All data is stored in the browser. Each user's browser has its own isolated dataset.
+</Info>
+
+## Storage Architecture
+
+Implemented in `storage.ts` with 35+ versioned keys:
+
+```typescript storage.ts
+const KEYS = {
+  // Content
+  BLOG: 'cafh_blog_v1',
+  BLOG_CONFIG: 'cafh_blog_config_v1',
+  CONTENT: 'cafh_content_v1',
+  CUSTOM_PAGES: 'cafh_pages_v1',
+  MEDIA: 'cafh_media_v1',
+  HOME_CONFIG: 'cafh_home_config_v1',
+  MEGA_MENU: 'cafh_menu_v1',
+  
+  // CRM & Communications
+  CONTACTS: 'cafh_contacts_v1',
+  CRM_LISTS: 'cafh_crm_lists_v1',
+  CAMPAIGNS: 'cafh_campaigns_v1',
+  AUTOMATIONS: 'cafh_automations_v1',
+  AUTOMATION_EXECUTIONS: 'cafh_automation_executions_v1',
+  EMAIL_LOGS: 'cafh_email_logs_v1',
+  EMAIL_METRICS: 'cafh_email_metrics_v1',
+  SMTP_CONFIG: 'cafh_smtp_config_v1',
+  
+  // Events
+  EVENTS: 'cafh_events_v1',
+  ACTIVITY_EVENTS: 'cafh_activity_events_v1',
+  ACTIVITY_CATS: 'cafh_activity_cats_v1',
+  
+  // Meetings Module
+  FEEDBACK_QUESTIONS: 'cafh_feedback_q_v1',
+  FEEDBACK_RESPONSES: 'cafh_feedback_r_v1',
+  MEMBER_BADGES: 'cafh_badges_v1',
+  PARTICIPATION: 'cafh_participation_v1',
+  ZOOM_WIDGET: 'cafh_zoom_widget_v1',
+  
+  // User & Session
+  SESSION: 'cafh_user_session_v1',
+  USER_PREFS: 'cafh_user_prefs_v1',
+  HISTORY: 'cafh_user_history_v1',
+  CONTENT_INTERACTIONS: 'cafh_content_interactions_v1',
+  
+  // System
+  CHANGE_LOG: 'cafh_changelog_v1',
+};
+```
+
+## Initialization
+
+Data is initialized on app mount:
+
+```typescript storage.ts
+const initStorage = <T>(key: string, initialData: T): T => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) {
+      // First run: seed with mock data
+      localStorage.setItem(key, JSON.stringify(initialData));
+      return initialData;
+    }
+    // Subsequent runs: load from storage
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error(`Error accessing storage for ${key}`, e);
+    return initialData;
+  }
+};
+
+export const db = {
+  init: () => {
+    // Initialize all storage keys with defaults from constants.ts
+    blogs = initStorage(KEYS.BLOG, MOCK_BLOG_POSTS);
+    contacts = initStorage(KEYS.CONTACTS, MOCK_CONTACTS);
+    events = initStorage(KEYS.EVENTS, MOCK_EVENTS);
+    // ... 30+ more initializations
+  },
+  // ... API methods
+};
+```
+
+Called in `App.tsx`:
+
+```tsx App.tsx
+const App: React.FC = () => {
+  useEffect(() => {
+    db.init();  // Initialize on mount
+  }, []);
+  // ...
+};
+```
+
+## CRUD Operations
+
+The `db` object provides CRUD methods for each entity:
+
+### Blog Example
+
+```typescript storage.ts
+let blogs: BlogPost[] = [];
+
+export const db = {
+  blog: {
+    getAll: (): BlogPost[] => blogs,
+    
+    getById: (id: string): BlogPost | undefined => 
+      blogs.find(b => b.id === id),
+    
+    create: (post: BlogPost): void => {
+      blogs.push(post);
+      localStorage.setItem(KEYS.BLOG, JSON.stringify(blogs));
+    },
+    
+    update: (id: string, updates: Partial<BlogPost>): void => {
+      const index = blogs.findIndex(b => b.id === id);
+      if (index !== -1) {
+        blogs[index] = { ...blogs[index], ...updates };
+        localStorage.setItem(KEYS.BLOG, JSON.stringify(blogs));
+      }
+    },
+    
+    delete: (id: string): void => {
+      blogs = blogs.filter(b => b.id !== id);
+      localStorage.setItem(KEYS.BLOG, JSON.stringify(blogs));
+    },
+  },
+};
+```
+
+### CRM Example
+
+```typescript storage.ts
+let contacts: Contact[] = [];
+
+export const db = {
+  crm: {
+    contacts: {
+      getAll: (): Contact[] => contacts,
+      
+      create: (contact: Contact): void => {
+        contacts.push(contact);
+        localStorage.setItem(KEYS.CONTACTS, JSON.stringify(contacts));
+      },
+      
+      update: (id: string, updates: Partial<Contact>): void => {
+        const index = contacts.findIndex(c => c.id === id);
+        if (index !== -1) {
+          contacts[index] = { ...contacts[index], ...updates };
+          localStorage.setItem(KEYS.CONTACTS, JSON.stringify(contacts));
+        }
+      },
+      
+      search: (query: string): Contact[] => 
+        contacts.filter(c => 
+          c.name.toLowerCase().includes(query.toLowerCase()) ||
+          c.email.toLowerCase().includes(query.toLowerCase())
+        ),
+    },
+  },
+};
+```
+
+## Storage Limits
+
+<Warning>
+  localStorage has a 5-10MB limit per origin. Monitor usage as your dataset grows.
+</Warning>
+
+### Check Current Usage
+
+```javascript
+function getStorageSize() {
+  let total = 0;
+  for (let key in localStorage) {
+    if (localStorage.hasOwnProperty(key)) {
+      total += localStorage[key].length + key.length;
+    }
+  }
+  return (total / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+console.log('Storage used:', getStorageSize());
+```
+
+### Optimization Strategies
+
+<Steps>
+  <Step title="Compress large fields">
+    Truncate long text fields or move to external storage:
+    
+    ```typescript
+    // Store full content separately if needed
+    content: blogPost.content.substring(0, 1000) + '...'
+    ```
+  </Step>
+
+  <Step title="Limit history">
+    Keep only recent records:
+    
+    ```typescript
+    // Keep last 100 emails only
+    emailLogs = emailLogs.slice(-100);
+    ```
+  </Step>
+
+  <Step title="Remove unused data">
+    Clean up old records periodically:
+    
+    ```typescript
+    // Remove bounced contacts older than 30 days
+    contacts = contacts.filter(c => 
+      c.status !== 'Bounced' || 
+      (Date.now() - new Date(c.createdAt).getTime()) < 30 * 24 * 60 * 60 * 1000
+    );
+    ```
+  </Step>
+</Steps>
+
+## Data Migration
+
+To migrate to a backend database:
+
+<Steps>
+  <Step title="Export current data">
+    ```javascript
+    function exportAllData() {
+      const data = {};
+      for (let key in localStorage) {
+        if (key.startsWith('cafh_')) {
+          data[key] = JSON.parse(localStorage[key]);
+        }
+      }
+      console.log(JSON.stringify(data, null, 2));
+    }
+    ```
+  </Step>
+
+  <Step title="Set up backend">
+    Replace `storage.ts` with API calls:
+    
+    ```typescript
+    export const db = {
+      blog: {
+        getAll: async () => {
+          const res = await fetch('/api/blog');
+          return res.json();
+        },
+        create: async (post: BlogPost) => {
+          await fetch('/api/blog', {
+            method: 'POST',
+            body: JSON.stringify(post),
+          });
+        },
+      },
+    };
+    ```
+  </Step>
+
+  <Step title="Import data">
+    Seed your database with exported data
+  </Step>
+</Steps>
+
+## Versioning
+
+Keys are versioned (`_v1`) to allow schema migrations:
+
+```typescript
+// Old schema
+const KEYS_V1 = {
+  CONTACTS: 'cafh_contacts_v1',
+};
+
+// New schema with engagementScore
+const KEYS_V2 = {
+  CONTACTS: 'cafh_contacts_v2',
+};
+
+// Migration
+function migrateV1toV2() {
+  const oldContacts = JSON.parse(localStorage.getItem('cafh_contacts_v1') || '[]');
+  const newContacts = oldContacts.map(c => ({
+    ...c,
+    engagementScore: 0,  // Add new field
+  }));
+  localStorage.setItem('cafh_contacts_v2', JSON.stringify(newContacts));
+  localStorage.removeItem('cafh_contacts_v1');
+}
+```
+
+## Best Practices
+
+<Accordion title="Always use db.* methods">
+  Never access `localStorage` directly. Use the `db` API to ensure consistency and error handling.
+</Accordion>
+
+<Accordion title="Handle errors gracefully">
+  localStorage can fail (quota exceeded, private browsing). Always wrap in try-catch.
+</Accordion>
+
+<Accordion title="Validate before saving">
+  Ensure data matches TypeScript interfaces before persisting.
+</Accordion>
+
+<Accordion title="Clear on logout (if sensitive)">
+  For sensitive data, clear localStorage on logout:
+  ```typescript
+  db.auth.logout = () => {
+    localStorage.clear();
+  };
+  ```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Model" icon="diagram" href="/concepts/data-model">
+    Explore all data types
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/storage-system">
+    Complete API documentation
+  </Card>
+  <Card title="Extending Types" icon="plus" href="/development/extending-types">
+    Add new data structures
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/development/deployment">
+    Deploy to production
+  </Card>
+</CardGroup>

@@ -1,0 +1,519 @@
+---
+title: 'Zoom Integration'
+description: 'Configure and manage Zoom virtual meetings for your community'
+---
+
+# Zoom Integration
+
+Manage virtual Zoom meetings with comprehensive features including agenda management, resource attachment, and member widgets.
+
+## Meetings Module Overview
+
+The Meetings Module (`MeetingsModule.tsx`) provides full CRUD for Zoom meetings with visual organization.
+
+From `types.ts:lines 224-248`:
+
+```typescript
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;              // YYYY-MM-DD
+  time: string;              // HH:MM
+  platform: 'Zoom';          // Only Zoom supported
+  meetingUrl: string;        // Full Zoom URL
+  eventStatus: 'Programada' | 'En curso' | 'Finalizada';
+  organizerContactId?: string;
+  agendaItems?: MeetingAgendaItem[];
+  mediaRefs?: MeetingMediaRef[];
+  zoomWidgetConfig?: ZoomWidgetConfig;
+  linkedActivityId?: string;  // Sync with ActivityEvent
+}
+```
+
+<Info>
+  The platform is **Zoom-only by design**. This simplifies member experience and reduces technical complexity.
+</Info>
+
+## Creating a Zoom Meeting
+
+Navigate to **Meetings Module → Reuniones** tab.
+
+<Steps>
+  <Step title="Open Meeting Form">
+    Click **+ Nueva Reunión** button.
+  </Step>
+
+  <Step title="General Information">
+    Fill required fields:
+    
+    - **Título**: Session name
+    - **Fecha**: Meeting date (date picker)
+    - **Hora**: Meeting time (time picker)
+    - **Estado**: `Programada`, `En curso`, or `Finalizada`
+  </Step>
+
+  <Step title="Select Organizer">
+    Choose from CRM contacts dropdown:
+    
+    ```typescript
+    const contacts = db.crm.getAll();
+    // Displays: {name} — {email}
+    ```
+    
+    From `MeetingsModule.tsx:lines 293-294`.
+  </Step>
+
+  <Step title="Add Zoom Link">
+    Paste the **manual Zoom meeting URL**:
+    
+    ```
+    https://zoom.us/j/1234567890?pwd=abcdef
+    ```
+    
+    <Warning>
+      This is a **manual integration**. You must create the meeting in Zoom first and paste the URL here.
+    </Warning>
+  </Step>
+
+  <Step title="Configure Agenda">
+    Build structured agenda (optional):
+    
+    Click **+ Agregar punto** to add agenda items.
+    
+    Each item has:
+    - **Title**: Topic name
+    - **Duration**: Minutes allocated
+    
+    Use ↑↓ arrows to reorder. Total duration shown at bottom.
+  </Step>
+
+  <Step title="Attach Resources">
+    Link media from library:
+    
+    Click **+ Vincular archivo** → Select from Media Library.
+    
+    <Info>
+      Resources are **read-only references**. They are not duplicated, just linked.
+    </Info>
+  </Step>
+
+  <Step title="Preview Widget">
+    Right panel shows how the meeting appears in member dashboard:
+    
+    - Zoom logo
+    - Title and time
+    - "Sala disponible" status indicator
+  </Step>
+
+  <Step title="Save Meeting">
+    Click **Guardar**. Meeting appears in list.
+  </Step>
+</Steps>
+
+From `MeetingsModule.tsx:lines 132-155`.
+
+## Agenda Management
+
+Structured agenda with time tracking.
+
+### Agenda Item Structure
+
+From `types.ts:lines 631-637`:
+
+```typescript
+interface MeetingAgendaItem {
+  id: string;
+  order: number;
+  title: string;
+  description?: string;
+  durationMinutes: number;
+}
+```
+
+### Adding Agenda Points
+
+In the meeting form:
+
+```typescript
+const addAgendaItem = () => {
+  const items = form.agendaItems || [];
+  setForm(prev => ({
+    ...prev,
+    agendaItems: [
+      ...items,
+      {
+        id: `ag_${Date.now()}`,
+        order: items.length + 1,
+        title: '',
+        durationMinutes: 15
+      }
+    ]
+  }));
+};
+```
+
+From `MeetingsModule.tsx:lines 158-160`.
+
+### Reordering Items
+
+Use up/down buttons to swap adjacent items:
+
+```typescript
+const moveAgendaItem = (idx: number, dir: 'up' | 'down') => {
+  const items = [...(form.agendaItems || [])];
+  const swap = dir === 'up' ? idx - 1 : idx + 1;
+  if (swap < 0 || swap >= items.length) return;
+  [items[idx], items[swap]] = [items[swap], items[idx]];
+  setForm(prev => ({ ...prev, agendaItems: items }));
+};
+```
+
+From `MeetingsModule.tsx:lines 171-177`.
+
+### Total Duration
+
+Calculated automatically:
+
+```typescript
+const totalMinutes = (form.agendaItems || [])
+  .reduce((a, b) => a + b.durationMinutes, 0);
+```
+
+Displayed as: **Total: {totalMinutes} min**
+
+From `MeetingsModule.tsx:lines 335-337`.
+
+## Media Library References
+
+Link existing media assets to meetings without duplication.
+
+### Reference Structure
+
+From `types.ts:lines 640-643`:
+
+```typescript
+interface MeetingMediaRef {
+  mediaAssetId: string;  // ID in MediaAsset table
+  label?: string;        // Optional override
+}
+```
+
+### Adding Resources
+
+Click **+ Vincular archivo** to open media picker:
+
+<Steps>
+  <Step title="Search Media">
+    Use search bar to filter by name or tags.
+  </Step>
+
+  <Step title="Select Asset">
+    Click asset card. Selected items show checkmark.
+  </Step>
+
+  <Step title="Close Picker">
+    References are added to meeting. Close modal.
+  </Step>
+</Steps>
+
+From `MeetingsModule.tsx:lines 180-185`.
+
+### Displaying References
+
+In meeting form, linked media shows:
+
+- **Icon**: Based on asset type (document, audio, video, image)
+- **Name**: Asset name or custom label
+- **Metadata**: Type and file size
+- **Remove button**: X icon to unlink
+
+From `MeetingsModule.tsx:lines 352-367`.
+
+### Icon Mapping
+
+```typescript
+const getAssetIcon = (type?: string) => {
+  if (type === 'document') return <FileText size={14} />;
+  if (type === 'audio') return <Music size={14} />;
+  if (type === 'video') return <Film size={14} />;
+  return <ImageIcon size={14} />;
+};
+```
+
+From `MeetingsModule.tsx:lines 189-194`.
+
+## Widget Configuration
+
+Customize how meetings appear in member dashboard.
+
+### Widget Structure
+
+From `types.ts:lines 646-651`:
+
+```typescript
+interface ZoomWidgetConfig {
+  subtitle: string;          // Secondary text
+  activityName: string;      // Activity type label
+  joinButtonText: string;    // CTA text
+  zoomUrl: string;           // Meeting URL
+}
+```
+
+### Widget Preview
+
+Right panel in meeting form shows real-time preview:
+
+```tsx
+<div className="bg-slate-900 rounded-2xl p-4">
+  <div className="flex items-center gap-3 mb-3">
+    <ZoomLogo size={24} />
+    <div>
+      <p className="text-white text-xs font-bold">
+        {form.title || 'Título de la sesión'}
+      </p>
+      <p className="text-slate-400 text-[10px]">
+        {form.time || '--:--'} · {form.date || 'Sin fecha'}
+      </p>
+    </div>
+  </div>
+  <div className="flex items-center gap-2 bg-emerald-500/10 rounded-xl p-2.5">
+    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+    <span className="text-emerald-400 text-xs font-bold">Sala disponible</span>
+  </div>
+</div>
+```
+
+From `MeetingsModule.tsx:lines 378-389`.
+
+## Zoom Logo Component
+
+Official Zoom branding SVG:
+
+```tsx
+const ZoomLogo: React.FC<{ size?: number }> = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40">
+    <rect width="40" height="40" rx="8" fill="#2D8CFF" />
+    <path d="M6 14C6 11.79 7.79 10 10 10H22C24.21 10 26 11.79 26 14V26C26 28.21 24.21 30 22 30H10C7.79 30 6 28.21 6 26V14Z" fill="white" />
+    <path d="M28 16L34 12V28L28 24V16Z" fill="white" />
+  </svg>
+);
+```
+
+From `MeetingsModule.tsx:lines 20-26`.
+
+<Info>
+  Using official colors (`#2D8CFF`) maintains brand consistency.
+</Info>
+
+## Meeting Status
+
+Three states with visual indicators:
+
+### Status Configuration
+
+From `MeetingsModule.tsx:lines 201-205`:
+
+```typescript
+const statusColors: Record<string, string> = {
+  'Programada': 'bg-blue-50 text-blue-700',
+  'En curso': 'bg-emerald-50 text-emerald-700',
+  'Finalizada': 'bg-slate-100 text-slate-500',
+};
+```
+
+### Status Workflow
+
+1. **Programada**: Initial state when created
+2. **En curso**: Manually updated when meeting starts
+3. **Finalizada**: Set after meeting concludes
+
+<Warning>
+  Status is **manual**. There is no automatic webhook integration to detect when meeting starts/ends.
+</Warning>
+
+## Meeting List View
+
+Meetings display in card format:
+
+```tsx
+<div className="bg-white rounded-[1.5rem] border p-6 flex items-center gap-5">
+  {/* Zoom Logo */}
+  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
+    <ZoomLogo size={28} />
+  </div>
+  
+  {/* Content */}
+  <div className="flex-1">
+    <div className="flex items-center gap-2 mb-1">
+      <p className="font-bold text-slate-800">{ev.title}</p>
+      <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[ev.eventStatus]}`}>
+        {ev.eventStatus}
+      </span>
+    </div>
+    <div className="flex items-center gap-4 text-xs text-slate-400">
+      <span><Calendar size={11} /> {ev.date}</span>
+      <span><Clock size={11} /> {ev.time}</span>
+      <span><User size={11} /> {organizer.name}</span>
+      {ev.agendaItems?.length && (
+        <span><List size={11} /> {ev.agendaItems.length} puntos de agenda</span>
+      )}
+    </div>
+  </div>
+  
+  {/* Actions */}
+  <div className="flex items-center gap-2">
+    {ev.meetingUrl && (
+      <a href={ev.meetingUrl} target="_blank">
+        <ExternalLink size={15} />
+      </a>
+    )}
+    <button onClick={() => openEdit(ev)}><Edit size={15} /></button>
+    <button onClick={() => deleteMeeting(ev.id)}><Trash2 size={15} /></button>
+  </div>
+</div>
+```
+
+From `MeetingsModule.tsx:lines 231-260`.
+
+## Media Picker Modal
+
+Full-screen modal for selecting media assets.
+
+### Features
+
+- **Search**: Filter by name or tags
+- **Visual Grid**: Cards with icons and metadata
+- **Selection State**: Checkmarks on selected items
+- **Read-Only**: Cannot modify media library from picker
+
+From `MeetingsModule.tsx:lines 408-456`.
+
+### Search Implementation
+
+```typescript
+const filteredMedia = mediaAssets.filter(a =>
+  a.name.toLowerCase().includes(mediaSearch.toLowerCase()) ||
+  a.tags.some(t => t.toLowerCase().includes(mediaSearch.toLowerCase()))
+);
+```
+
+From `MeetingsModule.tsx:lines 196-199`.
+
+## Synchronization with Activities
+
+Meetings can link to Activity Events for bidirectional sync.
+
+### Linking Fields
+
+```typescript
+// CalendarEvent (Meeting)
+interface CalendarEvent {
+  linkedActivityId?: string;  // Points to ActivityEvent.id
+}
+
+// ActivityEvent (Activity)
+interface ActivityEvent {
+  linkedMeetingId?: string;   // Points to CalendarEvent.id
+  zoomUrl?: string;           // Same as meetingUrl
+}
+```
+
+### Sync Behavior
+
+When `modality === 'Virtual'` in Activity:
+
+1. Setting `zoomUrl` can create a `CalendarEvent`
+2. Creating a `CalendarEvent` can auto-create `ActivityEvent`
+3. Both records reference each other via IDs
+
+<Warning>
+  Sync is **not automatic**. Admin must manually maintain consistency or implement webhook logic.
+</Warning>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Create in Zoom First" icon="video">
+    Always generate the meeting in Zoom before creating the platform record.
+  </Card>
+  
+  <Card title="Use Agenda for Complex Sessions" icon="list">
+    Structure multi-topic meetings with timed agenda items.
+  </Card>
+  
+  <Card title="Link Resources Early" icon="link">
+    Attach materials before publishing to members.
+  </Card>
+  
+  <Card title="Update Status Manually" icon="refresh">
+    Change status to "En curso" when starting, "Finalizada" after.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Meeting URL Not Working
+
+- Verify URL starts with `https://zoom.us/j/`
+- Check meeting ID and password are included
+- Test URL in browser before saving
+- Ensure Zoom meeting is not expired
+
+### Widget Not Showing in Dashboard
+
+- Confirm meeting date is today or future
+- Check `eventStatus` is not `Finalizada`
+- Verify member dashboard widget is enabled
+
+### Media Not Displaying
+
+- Check `mediaAssetId` exists in Media Library
+- Verify asset has not been deleted
+- Ensure asset type is supported (image, video, audio, document)
+
+### Agenda Total Wrong
+
+- Verify all `durationMinutes` values are positive numbers
+- Check for empty or undefined durations (defaults to 0)
+- Recalculate manually: sum all item durations
+
+## Manual Zoom Integration Guide
+
+Since this is **not an API integration**, follow these steps:
+
+<Steps>
+  <Step title="Create Meeting in Zoom">
+    1. Log in to [Zoom](https://zoom.us)
+    2. Click **Schedule a Meeting**
+    3. Set topic, date, time, settings
+    4. Copy the **join URL**
+  </Step>
+
+  <Step title="Create Meeting Record">
+    1. Open CAFH admin panel
+    2. Navigate to Meetings Module
+    3. Click **+ Nueva Reunión**
+    4. Paste Zoom URL in **Link de Zoom** field
+  </Step>
+
+  <Step title="Configure Details">
+    Match Zoom settings:
+    - Title: Same as Zoom topic
+    - Date/Time: Same as Zoom schedule
+    - Organizer: Host from CRM
+  </Step>
+
+  <Step title="Publish to Members">
+    Save meeting. Members see widget in dashboard with "Join" button linking to Zoom URL.
+  </Step>
+</Steps>
+
+<Info>
+  For automatic sync, you would need to implement [Zoom Webhooks](https://marketplace.zoom.us/docs/api-reference/webhook-reference) and OAuth integration.
+</Info>
+
+## Related Documentation
+
+- [Calendar Management](/admin/calendar-management) - Activity Events system
+- [Feedback System](/admin/feedback-system) - Post-meeting surveys
+- [Gamification](/admin/gamification) - Attendance rewards

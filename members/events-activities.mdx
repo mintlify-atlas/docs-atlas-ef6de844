@@ -1,0 +1,358 @@
+---
+title: 'Events and Activities'
+description: 'Discover how to browse, register for, and participate in community events'
+icon: 'calendar-days'
+---
+
+# Events and Activities
+
+The CAFH Platform includes a comprehensive events system for community gatherings, both virtual and in-person.
+
+## Event Types
+
+The platform supports three event modalities:
+
+<CardGroup cols={3}>
+  <Card title="Online" icon="laptop" color="#6366f1">
+    Virtual events via Zoom or other video platforms
+  </Card>
+  <Card title="Presencial" icon="building" color="#059669">
+    In-person events at physical locations
+  </Card>
+  <Card title="Híbrido" icon="arrows-split-up-and-left" color="#d97706">
+    Hybrid events with both online and in-person attendance
+  </Card>
+</CardGroup>
+
+## Event Data Structure
+
+Each event contains comprehensive information:
+
+```typescript
+interface CalendarEvent {
+  id: string;
+  title: string;              // Event name
+  date: string;               // Full date
+  day: string;                // Day number
+  month: string;              // Month name
+  time: string;               // Start time
+  location: string;           // Physical or virtual location
+  type: 'Presencial' | 'Online' | 'Híbrido';
+  color: string;              // Theme color (hex)
+  
+  // Virtual meeting details
+  meetingUrl?: string;        // Join link
+  zoomId?: string;            // Meeting ID
+  zoomPassword?: string;      // Meeting password
+  platform?: 'Zoom';          // Only Zoom supported
+  
+  // Event details
+  agenda?: string[];          // Legacy agenda items
+  resources?: EventResource[]; // Attached materials
+  
+  // Enhanced features (Phase 3)
+  organizerContactId?: string;     // CRM contact reference
+  mediaRefs?: MeetingMediaRef[];   // Media library references
+  agendaItems?: MeetingAgendaItem[]; // Structured agenda
+  eventStatus?: 'Programada' | 'En curso' | 'Finalizada';
+  linkedActivityId?: string;       // Sync with Activities Module
+}
+```
+
+## Viewing Events on Dashboard
+
+Your member dashboard shows upcoming events in two places:
+
+### 1. Virtual Room Widget (Sidebar)
+
+For **online and hybrid** events with a `meetingUrl`:
+
+- **Event Title**: Displayed prominently
+- **Status Badge**: 
+  - "Programada" (scheduled)
+  - "● En vivo" (live now) - animated pulse
+  - "Finalizada" (completed)
+- **Date & Time**: With calendar and clock icons
+- **Join Button**: Direct access to meeting
+
+**Display Logic:**
+
+```typescript
+const upcomingEvent = allEvents.find(e => 
+  (e.type === 'Online' || e.type === 'Híbrido') && 
+  e.meetingUrl
+);
+```
+
+Only the **next** virtual event with a meeting URL is shown.
+
+<Note>
+The Zoom widget displays "Sin sesiones virtuales próximas" if no online events are scheduled.
+</Note>
+
+### 2. Home Page Activities Section
+
+The public homepage can display upcoming events through the Activities Section:
+
+- **Configuration**: Admins set `maxEvents` to control display count
+- **Layout**: Grid or list view of upcoming events
+- **Public Access**: Visible to non-members
+
+## Event Details
+
+When viewing event information, you'll see:
+
+### Basic Information
+
+<Steps>
+  <Step title="Event Title & Type">
+    The event name and modality badge (Online/Presencial/Híbrido).
+  </Step>
+  
+  <Step title="Date & Time">
+    Full date in Spanish format and start time.
+  </Step>
+  
+  <Step title="Location/Platform">
+    Physical address or "Virtual - Zoom" for online events.
+  </Step>
+  
+  <Step title="Organizer">
+    Contact information for the event organizer (if configured).
+  </Step>
+</Steps>
+
+### Enhanced Details (Phase 3 Features)
+
+#### Structured Agenda
+
+For events with structured agenda items:
+
+```typescript
+interface MeetingAgendaItem {
+  id: string;
+  order: number;
+  title: string;              // Agenda point title
+  description?: string;       // Additional details
+  durationMinutes: number;    // Estimated duration
+}
+```
+
+**Display:**
+- Timeline view with duration badges
+- Total estimated duration calculated automatically
+- Visual timeline rail connecting items
+
+#### Meeting Materials
+
+Events can reference materials from the Media Library:
+
+```typescript
+interface MeetingMediaRef {
+  mediaAssetId: string;  // Links to Media Library
+  label?: string;        // Optional custom label
+}
+```
+
+**Material Types:**
+- 📄 Documents (PDFs, guides)
+- 🎵 Audio (recordings, meditations)
+- 🎬 Videos (preparatory content)
+- 🖼️ Images (slides, diagrams)
+
+<Card title="Read-Only References" icon="link">
+  Meeting materials are **references** to the Media Library. Updates to the media asset automatically reflect in all events that reference it.
+</Card>
+
+### Legacy vs. Enhanced Agenda
+
+The system supports two agenda formats:
+
+**Legacy Format (String Array):**
+```typescript
+agenda: [
+  "Bienvenida y meditación inicial",
+  "Enseñanza principal",
+  "Preguntas y respuestas",
+  "Meditación de cierre"
+]
+```
+
+**Enhanced Format (Structured Items):**
+```typescript
+agendaItems: [
+  {
+    id: "ai_1",
+    order: 1,
+    title: "Bienvenida y meditación inicial",
+    description: "Centramiento y preparación",
+    durationMinutes: 10
+  },
+  {
+    id: "ai_2",
+    order: 2,
+    title: "Enseñanza principal",
+    description: "Tema del día",
+    durationMinutes: 30
+  }
+]
+```
+
+<Tip>
+The platform automatically detects which format is available and displays accordingly. Enhanced format provides duration tracking and better organization.
+</Tip>
+
+## Event Registration (Coming Soon)
+
+While not yet implemented in the current version, the platform is designed to support:
+
+- Event registration with capacity limits
+- Waitlist management
+- Registration confirmation emails
+- Calendar export (iCal/Google Calendar)
+- Reminder notifications
+
+## Event Categories (Module 2 Integration)
+
+The platform includes an **Activities Module** with configurable categories:
+
+```typescript
+interface ActivityCategory {
+  id: string;
+  name: string;      // "Meditación", "Estudio", "Retiro"
+  color: string;     // Hex color for UI theming
+  icon: string;      // Lucide icon name
+}
+```
+
+### Default Categories
+
+<AccordionGroup>
+  <Accordion title="Meditación" icon="feather">
+    **Color**: Indigo (#6366f1)
+    Meditation sessions and contemplative practices.
+  </Accordion>
+  
+  <Accordion title="Estudio" icon="book-open">
+    **Color**: Cyan (#0891b2)
+    Study groups and educational sessions.
+  </Accordion>
+  
+  <Accordion title="Retiro" icon="map">
+    **Color**: Green (#059669)
+    Retreat events and immersive experiences.
+  </Accordion>
+  
+  <Accordion title="Charla" icon="microphone">
+    **Color**: Amber (#d97706)
+    Talks, presentations, and lectures.
+  </Accordion>
+  
+  <Accordion title="Comunidad" icon="users">
+    **Color**: Pink (#db2777)
+    Community gatherings and social events.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+Administrators can create custom categories with their own colors and icons to match your organization's event types.
+</Note>
+
+## Activity Events (Module 2)
+
+The platform includes a separate **Activity Events** system with enhanced features:
+
+```typescript
+interface ActivityEvent {
+  id: string;
+  title: string;
+  description: string;          // Rich HTML editor content
+  category: string;             // CategoryID
+  tags: string[];
+  startDate: string;            // YYYY-MM-DD
+  endDate: string;
+  startTime: string;            // HH:MM
+  endTime: string;
+  modality: 'Virtual' | 'Presencial' | 'Híbrida';
+  organizerContactId?: string;  // Links to CRM
+  status: 'Borrador' | 'Publicado' | 'Archivado';
+  imageUrl?: string;
+  featuredInDashboard: boolean; // Show in news section
+  linkedMeetingId?: string;     // Bidirectional sync
+  zoomUrl?: string;
+}
+```
+
+### Activity Events vs. Calendar Events
+
+**Calendar Events:**
+- Original event system
+- Simple structure
+- Manual management
+
+**Activity Events:**
+- Enhanced with categories
+- Rich text descriptions
+- Better organization
+- Bidirectional sync with meetings
+- Dashboard featuring
+
+<Warning>
+When an Activity Event has `modality: 'Virtual'`, it can be synced with a Calendar Event (meeting). Changes to either are automatically reflected in both.
+</Warning>
+
+## Filtering and Discovery
+
+While the member dashboard shows personalized event recommendations, administrators can create custom event browsing pages using:
+
+### Filter Events by Type
+
+```typescript
+const onlineEvents = db.events.getAll()
+  .filter(e => e.type === 'Online');
+
+const inPersonEvents = db.events.getAll()
+  .filter(e => e.type === 'Presencial');
+```
+
+### Filter by Date Range
+
+```typescript
+const upcomingEvents = db.events.getAll()
+  .filter(e => new Date(e.date) >= new Date());
+
+const thisMonth = db.events.getAll()
+  .filter(e => e.month === 'Marzo');
+```
+
+### Filter by Category (Activity Events)
+
+```typescript
+const activities = db.activities.getAll()
+  .filter(a => a.category === 'cat_meditation');
+```
+
+## Event Participation Tracking
+
+The platform tracks your event participation for analytics:
+
+```typescript
+interface ParticipationRecord {
+  id: string;
+  userId: string;
+  eventId: string;
+  eventTitle: string;
+  participatedAt: string;
+  feedbackSubmitted: boolean;
+  feedbackBlocksNext: boolean;
+}
+```
+
+Participation is logged when you:
+- Join a virtual meeting via the Zoom widget
+- Check in at an in-person event (admin action)
+- Submit post-event feedback
+
+<Card title="Gamification" icon="trophy">
+  Participation records contribute to your member badges and recognition system. Complete feedback after events to earn participation stars!
+</Card>

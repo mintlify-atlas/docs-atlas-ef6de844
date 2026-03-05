@@ -1,0 +1,178 @@
+---
+title: "Installation"
+description: "Set up the CAFH Platform development environment"
+icon: "download"
+---
+
+## Prerequisites
+
+Before installing CAFH Platform, ensure you have the following installed:
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    Version 18.x or higher
+  </Card>
+  <Card title="npm" icon="box">
+    Version 9.x or higher (comes with Node.js)
+  </Card>
+</CardGroup>
+
+<Note>
+  Check your versions:
+  ```bash
+  node --version
+  npm --version
+  ```
+</Note>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/AXXIomaSPA/cafh.git
+    cd cafh
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    The platform uses npm for package management. Install all required dependencies:
+
+    ```bash
+    npm install
+    ```
+
+    This will install:
+    - **React 19.2.3** - UI library
+    - **TypeScript 5.8.2** - Type safety
+    - **Express 5.2.1** - Backend server
+    - **Vite 6.2.0** - Build tool
+    - **React Router 7.10.1** - Routing
+    - **Lucide React 0.561.0** - Icons
+    - **Recharts 3.6.0** - Analytics charts
+    - **@xyflow/react 12.10.1** - Automation flow builder
+    - **Nodemailer 8.0.1** - Email sending
+
+    And many more dependencies listed in `package.json`.
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file in the project root:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit the `.env` file with your SMTP configuration (optional for local development):
+
+    ```bash .env
+    # SMTP Configuration for cPanel
+    SMTP_HOST=mail.yourdomain.com
+    SMTP_PORT=465
+    SMTP_USER=crm@yourdomain.com
+    SMTP_PASS=your_password
+    SMTP_SECURE=true
+
+    # Throttling Configuration
+    MAX_EMAILS_PER_HOUR=80
+    ```
+
+    <Info>
+      SMTP configuration is optional for local development. The platform will run without it, but email features won't work.
+    </Info>
+  </Step>
+
+  <Step title="Start the development server">
+    ```bash
+    npm run dev
+    ```
+
+    The server will start on `http://localhost:3000`
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Once the server is running, open your browser to `http://localhost:3000`. You should see the CAFH Platform home page.
+
+<CardGroup cols={2}>
+  <Card title="Admin Login" icon="shield">
+    Email: `admin@cafh.cl`
+    
+    Password: `admin123`
+  </Card>
+  <Card title="Member Login" icon="user">
+    Email: `miembro@cafh.cl`
+    
+    Password: `miembro123`
+  </Card>
+</CardGroup>
+
+## Project Structure
+
+After installation, your project structure will look like this:
+
+```
+cafh/
+├── components/          # React components
+├── node_modules/        # Dependencies
+├── App.tsx             # Main application component
+├── index.tsx           # Entry point
+├── types.ts            # TypeScript type definitions
+├── storage.ts          # Data storage layer
+├── constants.ts        # Configuration constants
+├── server.ts           # Express backend server
+├── package.json        # Project dependencies
+├── tsconfig.json       # TypeScript configuration
+├── vite.config.ts      # Vite build configuration
+└── .env                # Environment variables (you create this)
+```
+
+## Troubleshooting
+
+<Accordion title="Port 3000 is already in use">
+  If port 3000 is occupied, edit `vite.config.ts` to change the port:
+
+  ```typescript vite.config.ts
+  server: {
+    port: 3001,  // Change to any available port
+    host: '0.0.0.0',
+  },
+  ```
+</Accordion>
+
+<Accordion title="Module not found errors">
+  Try deleting `node_modules` and reinstalling:
+
+  ```bash
+  rm -rf node_modules package-lock.json
+  npm install
+  ```
+</Accordion>
+
+<Accordion title="TypeScript errors">
+  Run the linter to check for type errors:
+
+  ```bash
+  npm run lint
+  ```
+
+  This runs `tsc --noEmit` to check types without building.
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Setup" icon="gear" href="/development/environment-setup">
+    Configure environment variables
+  </Card>
+  <Card title="Running Locally" icon="play" href="/development/running-locally">
+    Learn about development workflows
+  </Card>
+  <Card title="Tech Stack" icon="layer-group" href="/development/tech-stack">
+    Explore the technologies used
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Understand the platform architecture
+  </Card>
+</CardGroup>

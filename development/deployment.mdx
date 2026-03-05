@@ -1,0 +1,272 @@
+---
+title: "Deployment"
+description: "Deploy CAFH Platform to production"
+icon: "rocket"
+---
+
+## Deployment Overview
+
+CAFH Platform is a static frontend with a Node.js backend. You can deploy them together or separately.
+
+## Deployment Options
+
+<Tabs>
+  <Tab title="Vercel (Recommended)">
+    Deploy both frontend and backend to Vercel:
+
+    <Steps>
+      <Step title="Install Vercel CLI">
+        ```bash
+        npm install -g vercel
+        ```
+      </Step>
+
+      <Step title="Build the frontend">
+        ```bash
+        npm run build
+        ```
+      </Step>
+
+      <Step title="Deploy">
+        ```bash
+        vercel --prod
+        ```
+      </Step>
+
+      <Step title="Configure environment variables">
+        In Vercel dashboard, add:
+        - `SMTP_HOST`
+        - `SMTP_PORT`
+        - `SMTP_USER`
+        - `SMTP_PASS`
+        - `SMTP_SECURE`
+        - `MAX_EMAILS_PER_HOUR`
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Netlify">
+    Deploy static frontend to Netlify:
+
+    <Steps>
+      <Step title="Build the frontend">
+        ```bash
+        npm run build
+        ```
+      </Step>
+
+      <Step title="Deploy">
+        ```bash
+        npx netlify-cli deploy --prod --dir=dist
+        ```
+      </Step>
+
+      <Step title="Configure redirects">
+        Create `dist/_redirects`:
+        ```
+        /* /index.html 200
+        ```
+        
+        This ensures hash routing works correctly.
+      </Step>
+    </Steps>
+
+    <Warning>
+      Netlify doesn't support the Node.js backend. Deploy `server.ts` separately (e.g., Railway, Render).
+    </Warning>
+  </Tab>
+
+  <Tab title="Railway">
+    Deploy the full stack to Railway:
+
+    <Steps>
+      <Step title="Create railway.json">
+        ```json railway.json
+        {
+          "build": {
+            "builder": "NIXPACKS"
+          },
+          "deploy": {
+            "startCommand": "npm run dev",
+            "restartPolicyType": "ON_FAILURE"
+          }
+        }
+        ```
+      </Step>
+
+      <Step title="Push to GitHub">
+        ```bash
+        git push origin main
+        ```
+      </Step>
+
+      <Step title="Connect to Railway">
+        1. Go to railway.app
+        2. Create new project from GitHub repo
+        3. Add environment variables
+        4. Deploy
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Docker">
+    Containerize the application:
+
+    ```dockerfile Dockerfile
+    FROM node:20-alpine
+
+    WORKDIR /app
+
+    COPY package*.json ./
+    RUN npm ci --only=production
+
+    COPY . .
+    RUN npm run build
+
+    EXPOSE 3000
+
+    CMD ["node", "server.ts"]
+    ```
+
+    Build and run:
+    ```bash
+    docker build -t cafh-platform .
+    docker run -p 3000:3000 --env-file .env cafh-platform
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+Set these in your deployment platform:
+
+```bash .env.production
+# SMTP Configuration
+SMTP_HOST=mail.yourdomain.com
+SMTP_PORT=465
+SMTP_USER=crm@yourdomain.com
+SMTP_PASS=your_password
+SMTP_SECURE=true
+
+# Email Throttling
+MAX_EMAILS_PER_HOUR=80
+
+# Optional
+NODE_ENV=production
+```
+
+## Static Hosting (Frontend Only)
+
+If you only deploy the frontend:
+
+<Steps>
+  <Step title="Build">
+    ```bash
+    npm run build
+    ```
+  </Step>
+
+  <Step title="Upload dist/ folder">
+    Upload to:
+    - GitHub Pages
+    - Netlify
+    - Vercel
+    - Cloudflare Pages
+    - AWS S3 + CloudFront
+  </Step>
+
+  <Step title="Configure routing">
+    For hash routing, no special configuration needed.
+    
+    For browser routing, add a redirect rule:
+    ```
+    /* /index.html 200
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Without the backend, email features won't work. Consider deploying `server.ts` separately.
+</Warning>
+
+## Custom Domain
+
+### Vercel
+
+1. Go to Project Settings > Domains
+2. Add your domain (e.g., `cafh.org`)
+3. Update DNS records as shown
+4. Wait for SSL certificate provisioning
+
+### Netlify
+
+1. Go to Site Settings > Domain Management
+2. Add custom domain
+3. Configure DNS:
+   ```
+   A Record: @ -> 75.2.60.5
+   CNAME: www -> your-site.netlify.app
+   ```
+
+## Post-Deployment
+
+<Steps>
+  <Step title="Test all features">
+    - Login as admin and member
+    - Create a test campaign
+    - Upload media
+    - Create a blog post
+    - Test Zoom integration (if configured)
+  </Step>
+
+  <Step title="Verify email sending">
+    Send a test campaign to yourself and verify delivery
+  </Step>
+
+  <Step title="Monitor logs">
+    Check deployment logs for errors:
+    - Vercel: Dashboard > Deployments > Logs
+    - Railway: Project > Deployments > Logs
+  </Step>
+
+  <Step title="Set up analytics (optional)">
+    Add Google Analytics or Plausible to track usage
+  </Step>
+</Steps>
+
+## Production Checklist
+
+<Accordion title="Security">
+  - [ ] HTTPS enabled (automatic with Vercel/Netlify)
+  - [ ] SMTP credentials in environment variables (not in code)
+  - [ ] CORS configured correctly
+  - [ ] Rate limiting enabled for email
+</Accordion>
+
+<Accordion title="Performance">
+  - [ ] Production build minified
+  - [ ] Gzip/Brotli compression enabled
+  - [ ] CDN for static assets
+  - [ ] Lazy loading for large components
+</Accordion>
+
+<Accordion title="Monitoring">
+  - [ ] Error tracking (Sentry, Rollbar)
+  - [ ] Uptime monitoring (UptimeRobot)
+  - [ ] Email delivery monitoring
+  - [ ] Storage usage tracking
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Email Server" icon="envelope" href="/development/email-server">
+    Configure production email
+  </Card>
+  <Card title="Environment Setup" icon="gear" href="/development/environment-setup">
+    Manage environment variables
+  </Card>
+  <Card title="Build Process" icon="hammer" href="/development/build-process">
+    Optimize builds
+  </Card>
+</CardGroup>

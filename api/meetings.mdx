@@ -1,0 +1,530 @@
+---
+title: 'Virtual Meetings API'
+description: 'Feedback, gamification, and participation tracking for Zoom meetings'
+icon: 'video'
+---
+
+## Overview
+
+The Virtual Meetings module provides comprehensive post-session feedback, gamification with badges, and participation tracking for Zoom-based virtual meetings.
+
+---
+
+## Feedback Management
+
+### getQuestions
+
+Retrieve active feedback questions.
+
+```typescript
+db.feedback.getQuestions(): FeedbackQuestion[]
+```
+
+<ResponseField name="questions" type="FeedbackQuestion[]">
+  Array of feedback questions
+</ResponseField>
+
+**Example:**
+
+```typescript
+const questions = db.feedback.getQuestions();
+const active = questions.filter(q => q.isActive);
+```
+
+---
+
+### saveQuestions
+
+Update feedback questions configuration.
+
+```typescript
+db.feedback.saveQuestions(
+  questions: FeedbackQuestion[]
+): FeedbackQuestion[]
+```
+
+<ParamField path="questions" type="FeedbackQuestion[]" required>
+  Complete array of questions
+</ParamField>
+
+**Example:**
+
+```typescript
+db.feedback.saveQuestions([
+  {
+    id: 'fq_1',
+    order: 1,
+    text: '¿Cómo evaluarías la sesión?',
+    type: 'rating',
+    isActive: true
+  },
+  {
+    id: 'fq_2',
+    order: 2,
+    text: '¿Qué te gustó más?',
+    type: 'multiple_choice',
+    options: ['La temática', 'La dinámica', 'El facilitador'],
+    isActive: true
+  }
+]);
+```
+
+---
+
+### getResponses
+
+Retrieve feedback responses, optionally filtered by event.
+
+```typescript
+db.feedback.getResponses(eventId?: string): FeedbackResponse[]
+```
+
+<ParamField path="eventId" type="string" optional>
+  Filter by specific event ID
+</ParamField>
+
+<ResponseField name="responses" type="FeedbackResponse[]">
+  Array of feedback responses
+</ResponseField>
+
+**Example:**
+
+```typescript
+// All responses
+const allResponses = db.feedback.getResponses();
+
+// Responses for specific event
+const eventResponses = db.feedback.getResponses('ev_123');
+const avgRating = eventResponses.reduce((sum, r) => 
+  sum + r.overallRating, 0
+) / eventResponses.length;
+```
+
+---
+
+### submitResponse
+
+Submit feedback after attending an event.
+
+```typescript
+db.feedback.submitResponse(
+  data: Omit<FeedbackResponse, 'id'>
+): FeedbackResponse
+```
+
+<ParamField path="data.eventId" type="string" required>
+  Event ID
+</ParamField>
+
+<ParamField path="data.userId" type="string" required>
+  User ID
+</ParamField>
+
+<ParamField path="data.userName" type="string" required>
+  User name
+</ParamField>
+
+<ParamField path="data.submittedAt" type="string" required>
+  Submission timestamp
+</ParamField>
+
+<ParamField path="data.answers" type="array" required>
+  Array of question answers
+</ParamField>
+
+<ParamField path="data.overallRating" type="number" required>
+  Overall rating (1-5)
+</ParamField>
+
+<ResponseField name="response" type="FeedbackResponse">
+  The submitted response with ID
+</ResponseField>
+
+**Example:**
+
+```typescript
+const response = db.feedback.submitResponse({
+  eventId: 'ev_123',
+  userId: 'u_456',
+  userName: 'Juan Pérez',
+  submittedAt: new Date().toISOString(),
+  overallRating: 5,
+  answers: [
+    {
+      questionId: 'fq_1',
+      questionText: '¿Cómo evaluarías la sesión?',
+      value: 5
+    },
+    {
+      questionId: 'fq_2',
+      questionText: '¿Qué te gustó más?',
+      value: 'La temática'
+    }
+  ]
+});
+```
+
+<Info>
+Submitting feedback automatically updates the participant's record and removes any blocking flags.
+</Info>
+
+---
+
+### hasBlockingFeedback
+
+Check if a user has pending feedback that blocks future participation.
+
+```typescript
+db.feedback.hasBlockingFeedback(userId: string): boolean
+```
+
+<ParamField path="userId" type="string" required>
+  User ID to check
+</ParamField>
+
+<ResponseField name="isBlocked" type="boolean">
+  True if user has blocking pending feedback
+</ResponseField>
+
+**Example:**
+
+```typescript
+const isBlocked = db.feedback.hasBlockingFeedback('u_456');
+if (isBlocked) {
+  alert('Please submit feedback from your last session before joining.');
+}
+```
+
+---
+
+## Gamification
+
+### getBadges
+
+Retrieve badges, optionally filtered by user.
+
+```typescript
+db.gamification.getBadges(userId?: string): MemberBadge[]
+```
+
+<ParamField path="userId" type="string" optional>
+  Filter by user ID
+</ParamField>
+
+<ResponseField name="badges" type="MemberBadge[]">
+  Array of badges
+</ResponseField>
+
+**Example:**
+
+```typescript
+// All badges
+const allBadges = db.gamification.getBadges();
+
+// User's badges
+const userBadges = db.gamification.getBadges('u_456');
+console.log(`${userBadges.length} badges earned`);
+```
+
+---
+
+### awardBadge
+
+Award a badge to a member.
+
+```typescript
+db.gamification.awardBadge(
+  data: Omit<MemberBadge, 'id'>
+): MemberBadge
+```
+
+<ParamField path="data.userId" type="string" required>
+  Recipient user ID
+</ParamField>
+
+<ParamField path="data.type" type="BadgeType" required>
+  'estrella' | 'medalla_bronce' | 'medalla_plata' | 'medalla_oro' | 'especial'
+</ParamField>
+
+<ParamField path="data.label" type="string" required>
+  Badge label/name
+</ParamField>
+
+<ParamField path="data.reason" type="string" required>
+  Reason for awarding
+</ParamField>
+
+<ParamField path="data.awardedAt" type="string" required>
+  Timestamp
+</ParamField>
+
+<ParamField path="data.awardedBy" type="string" required>
+  Admin user ID who awarded it
+</ParamField>
+
+<ResponseField name="badge" type="MemberBadge">
+  The created badge with ID
+</ResponseField>
+
+**Example:**
+
+```typescript
+const badge = db.gamification.awardBadge({
+  userId: 'u_456',
+  type: 'medalla_oro',
+  label: 'Perfect Attendance',
+  reason: 'Attended 10 consecutive sessions',
+  awardedAt: new Date().toISOString(),
+  awardedBy: 'u_admin'
+});
+```
+
+---
+
+### removeBadge
+
+Revoke a badge.
+
+```typescript
+db.gamification.removeBadge(id: string): void
+```
+
+<ParamField path="id" type="string" required>
+  Badge ID to remove
+</ParamField>
+
+---
+
+## Participation Tracking
+
+### getParticipation
+
+Retrieve participation records.
+
+```typescript
+db.gamification.getParticipation(userId?: string): ParticipationRecord[]
+```
+
+<ParamField path="userId" type="string" optional>
+  Filter by user ID
+</ParamField>
+
+<ResponseField name="records" type="ParticipationRecord[]">
+  Array of participation records
+</ResponseField>
+
+**Example:**
+
+```typescript
+const participation = db.gamification.getParticipation('u_456');
+console.log(`Attended ${participation.length} events`);
+```
+
+---
+
+### recordParticipation
+
+Record a user's participation in an event.
+
+```typescript
+db.gamification.recordParticipation(
+  data: Omit<ParticipationRecord, 'id'>
+): ParticipationRecord
+```
+
+<ParamField path="data.userId" type="string" required>
+  User ID
+</ParamField>
+
+<ParamField path="data.eventId" type="string" required>
+  Event ID
+</ParamField>
+
+<ParamField path="data.eventTitle" type="string" required>
+  Event title
+</ParamField>
+
+<ParamField path="data.participatedAt" type="string" required>
+  Timestamp
+</ParamField>
+
+<ParamField path="data.feedbackSubmitted" type="boolean" required>
+  Whether feedback was submitted
+</ParamField>
+
+<ParamField path="data.feedbackBlocksNext" type="boolean" required>
+  Whether lack of feedback blocks next event
+</ParamField>
+
+<ResponseField name="record" type="ParticipationRecord">
+  The created record with ID
+</ResponseField>
+
+**Example:**
+
+```typescript
+const record = db.gamification.recordParticipation({
+  userId: 'u_456',
+  eventId: 'ev_123',
+  eventTitle: 'Meditation Workshop',
+  participatedAt: new Date().toISOString(),
+  feedbackSubmitted: false,
+  feedbackBlocksNext: true
+});
+```
+
+---
+
+### getRanking
+
+Get leaderboard ranking based on participation and badges.
+
+```typescript
+db.gamification.getRanking(): Array<{
+  userId: string;
+  userName: string;
+  points: number;
+  badges: number;
+  participations: number;
+}>
+```
+
+<ResponseField name="ranking" type="array">
+  Sorted array of user rankings
+</ResponseField>
+
+**Example:**
+
+```typescript
+const ranking = db.gamification.getRanking();
+console.log('Top 3:');
+ranking.slice(0, 3).forEach((user, i) => {
+  console.log(`${i + 1}. ${user.userName}: ${user.points} points`);
+});
+```
+
+**Points System:**
+- Participation: 5 points
+- Participation + Feedback: 10 points
+- Badge awarded: 20 points
+
+---
+
+## Types Reference
+
+### FeedbackQuestion
+
+```typescript
+interface FeedbackQuestion {
+  id: string;
+  order: number;
+  text: string;
+  type: 'rating' | 'multiple_choice' | 'text';
+  options?: string[];   // For multiple_choice
+  isActive: boolean;
+}
+```
+
+### FeedbackResponse
+
+```typescript
+interface FeedbackResponse {
+  id: string;
+  eventId: string;
+  userId: string;
+  userName: string;
+  submittedAt: string;
+  answers: {
+    questionId: string;
+    questionText: string;
+    value: string | number;
+  }[];
+  overallRating: number;   // 1-5
+}
+```
+
+### MemberBadge
+
+```typescript
+type BadgeType = 
+  | 'estrella' 
+  | 'medalla_bronce' 
+  | 'medalla_plata' 
+  | 'medalla_oro' 
+  | 'especial';
+
+interface MemberBadge {
+  id: string;
+  userId: string;
+  type: BadgeType;
+  label: string;
+  reason: string;
+  awardedAt: string;
+  awardedBy: string;
+}
+```
+
+### ParticipationRecord
+
+```typescript
+interface ParticipationRecord {
+  id: string;
+  userId: string;
+  eventId: string;
+  eventTitle: string;
+  participatedAt: string;
+  feedbackSubmitted: boolean;
+  feedbackBlocksNext: boolean;
+}
+```
+
+---
+
+## Complete Workflow Example
+
+```typescript
+// 1. User joins a meeting
+const userId = 'u_456';
+const eventId = 'ev_123';
+
+// 2. Record participation
+db.gamification.recordParticipation({
+  userId,
+  eventId,
+  eventTitle: 'Weekly Meditation',
+  participatedAt: new Date().toISOString(),
+  feedbackSubmitted: false,
+  feedbackBlocksNext: true  // Blocks until feedback submitted
+});
+
+// 3. User submits feedback after event
+db.feedback.submitResponse({
+  eventId,
+  userId,
+  userName: 'Juan Pérez',
+  submittedAt: new Date().toISOString(),
+  overallRating: 5,
+  answers: [
+    { questionId: 'fq_1', questionText: 'Rating?', value: 5 }
+  ]
+});
+// This automatically removes the block
+
+// 4. Check if eligible for badge
+const participations = db.gamification.getParticipation(userId);
+if (participations.length >= 10) {
+  db.gamification.awardBadge({
+    userId,
+    type: 'medalla_oro',
+    label: '10 Sessions Milestone',
+    reason: 'Attended 10 sessions',
+    awardedAt: new Date().toISOString(),
+    awardedBy: 'u_admin'
+  });
+}
+
+// 5. View user's ranking
+const ranking = db.gamification.getRanking();
+const userRank = ranking.findIndex(r => r.userId === userId) + 1;
+console.log(`User is ranked #${userRank}`);
+```

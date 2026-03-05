@@ -1,0 +1,247 @@
+---
+title: 'Contact Management API'
+description: 'CRM contact operations - create, read, update contacts'
+icon: 'address-book'
+---
+
+## Overview
+
+The Contact Management API provides full CRUD operations for managing CRM contacts, including subscribers, leads, and members.
+
+---
+
+## Methods
+
+### getAll
+
+Retrieve all contacts in the CRM.
+
+```typescript
+db.crm.getAll(): Contact[]
+```
+
+<ResponseField name="contacts" type="Contact[]">
+  Array of all contacts
+</ResponseField>
+
+**Example:**
+
+```typescript
+const contacts = db.crm.getAll();
+console.log(`Total contacts: ${contacts.length}`);
+```
+
+---
+
+### getById
+
+Find a specific contact by ID.
+
+```typescript
+db.crm.getById(id: string): Contact | undefined
+```
+
+<ParamField path="id" type="string" required>
+  The unique contact ID
+</ParamField>
+
+<ResponseField name="contact" type="Contact | undefined">
+  The contact object if found, undefined otherwise
+</ResponseField>
+
+**Example:**
+
+```typescript
+const contact = db.crm.getById('c_12345');
+if (contact) {
+  console.log('Contact:', contact.name, contact.email);
+}
+```
+
+---
+
+### add
+
+Create a new contact.
+
+```typescript
+db.crm.add(contact: Omit<Contact, 'id'>): Contact
+```
+
+<ParamField path="contact" type="Omit<Contact, 'id'>" required>
+  Contact data without ID (auto-generated)
+</ParamField>
+
+<ResponseField name="contact" type="Contact">
+  The newly created contact with generated ID
+</ResponseField>
+
+**Example:**
+
+```typescript
+const newContact = db.crm.add({
+  name: 'Juan Pérez',
+  email: 'juan@example.com',
+  phone: '+56912345678',
+  role: 'Member',
+  status: 'Subscribed',
+  lastContact: '2024-03-15',
+  tags: ['Newsletter', 'Meditation']
+});
+```
+
+---
+
+### update
+
+Update an existing contact.
+
+```typescript
+db.crm.update(contact: Contact): Contact[]
+```
+
+<ParamField path="contact" type="Contact" required>
+  Complete contact object with updates
+</ParamField>
+
+<ResponseField name="contacts" type="Contact[]">
+  Updated array of all contacts
+</ResponseField>
+
+**Example:**
+
+```typescript
+const contact = db.crm.getById('c_12345');
+if (contact) {
+  contact.status = 'Subscribed';
+  contact.tags = [...contact.tags, 'VIP'];
+  db.crm.update(contact);
+}
+```
+
+---
+
+### addLead
+
+Quickly add a lead from a subscription form.
+
+```typescript
+db.crm.addLead(lead: {
+  email: string;
+  source: string;
+  date: string;
+  status: string;
+}): Promise<Contact>
+```
+
+<ParamField path="lead.email" type="string" required>
+  Lead's email address
+</ParamField>
+
+<ParamField path="lead.source" type="string" required>
+  Lead source (e.g., 'Footer', 'Landing Page')
+</ParamField>
+
+<ParamField path="lead.date" type="string" required>
+  Date captured (ISO format)
+</ParamField>
+
+<ParamField path="lead.status" type="string" required>
+  Initial status
+</ParamField>
+
+<ResponseField name="contact" type="Contact">
+  The created contact record
+</ResponseField>
+
+**Example:**
+
+```typescript
+const lead = await db.crm.addLead({
+  email: 'nuevo@cafh.cl',
+  source: 'Footer Newsletter',
+  date: new Date().toISOString(),
+  status: 'Subscribed'
+});
+```
+
+---
+
+### addMultiple
+
+Bulk import multiple contacts.
+
+```typescript
+db.crm.addMultiple(contacts: Omit<Contact, 'id'>[]): Contact[]
+```
+
+<ParamField path="contacts" type="Omit<Contact, 'id'>[]" required>
+  Array of contacts to import
+</ParamField>
+
+<ResponseField name="contacts" type="Contact[]">
+  Array of newly created contacts with IDs
+</ResponseField>
+
+**Example:**
+
+```typescript
+const imported = db.crm.addMultiple([
+  { name: 'Ana García', email: 'ana@example.com', phone: '', role: 'Lead', status: 'Pending', lastContact: '2024-03-15', tags: [] },
+  { name: 'Carlos López', email: 'carlos@example.com', phone: '', role: 'Lead', status: 'Pending', lastContact: '2024-03-15', tags: [] }
+]);
+console.log(`Imported ${imported.length} contacts`);
+```
+
+---
+
+## Contact Type
+
+```typescript
+interface Contact {
+  id: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: 'Subscribed' | 'Unsubscribed' | 'Bounced' | 'Pending' | 'new';
+  lastContact: string;
+  tags: string[];
+  notes?: string;
+  engagementScore?: number; // 0-100
+  mailrelayId?: string;
+  city?: string;
+  country?: string;
+  createdAt?: string;
+  listIds?: string[]; // List memberships
+}
+```
+
+---
+
+## Integration with Mailrelay
+
+Sync contacts with Mailrelay service.
+
+### syncContact
+
+```typescript
+db.mailrelay.syncContact(contact: Contact): Promise<Contact>
+```
+
+<ParamField path="contact" type="Contact" required>
+  Contact to sync with Mailrelay
+</ParamField>
+
+<ResponseField name="contact" type="Contact">
+  Updated contact with mailrelayId
+</ResponseField>
+
+**Example:**
+
+```typescript
+const synced = await db.mailrelay.syncContact(contact);
+console.log('Mailrelay ID:', synced.mailrelayId);
+```

@@ -1,122 +1,205 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "CAFH Platform",
+  "theme": "almond",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#1A428A",
+    "light": "#6366f1",
+    "dark": "#0f172a"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/AXXIomaSPA/cafh"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/AXXIomaSPA/cafh"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Get Started",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Overview",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "architecture"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "concepts/user-roles",
+              "concepts/multi-tenancy",
+              "concepts/data-model"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Member Guide",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Getting Started",
             "pages": [
-              "api-reference/introduction"
+              "members/onboarding",
+              "members/profile-wizard",
+              "members/dashboard"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Features",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "members/content-library",
+              "members/events-activities",
+              "members/virtual-meetings",
+              "members/personalization"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Admin Guide",
+        "groups": [
+          {
+            "group": "Content Management",
+            "pages": [
+              "admin/cms-overview",
+              "admin/pages-editor",
+              "admin/blog-management",
+              "admin/media-library"
+            ]
+          },
+          {
+            "group": "Member Management",
+            "pages": [
+              "admin/crm",
+              "admin/contact-lists",
+              "admin/user-roles"
+            ]
+          },
+          {
+            "group": "Communications",
+            "pages": [
+              "admin/email-campaigns",
+              "admin/automation-workflows",
+              "admin/smtp-configuration"
+            ]
+          },
+          {
+            "group": "Events & Activities",
+            "pages": [
+              "admin/calendar-management",
+              "admin/zoom-integration",
+              "admin/feedback-system",
+              "admin/gamification"
+            ]
+          },
+          {
+            "group": "Analytics",
+            "pages": [
+              "admin/analytics-dashboard",
+              "admin/engagement-metrics",
+              "admin/content-performance"
+            ]
+          },
+          {
+            "group": "Settings",
+            "pages": [
+              "admin/site-settings",
+              "admin/journey-profiles",
+              "admin/change-log"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core APIs",
+            "pages": [
+              "api/authentication",
+              "api/storage-system",
+              "api/data-types"
+            ]
+          },
+          {
+            "group": "Content APIs",
+            "pages": [
+              "api/cms",
+              "api/media",
+              "api/pages"
+            ]
+          },
+          {
+            "group": "User & CRM APIs",
+            "pages": [
+              "api/users",
+              "api/contacts",
+              "api/lists"
+            ]
+          },
+          {
+            "group": "Communication APIs",
+            "pages": [
+              "api/email",
+              "api/campaigns",
+              "api/automations"
+            ]
+          },
+          {
+            "group": "Events APIs",
+            "pages": [
+              "api/calendar-events",
+              "api/meetings",
+              "api/activities"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "development/installation",
+              "development/environment-setup",
+              "development/running-locally"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/tech-stack",
+              "development/folder-structure",
+              "development/storage-system"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "development/build-process",
+              "development/deployment",
+              "development/email-server"
+            ]
+          },
+          {
+            "group": "Customization",
+            "pages": [
+              "development/theming",
+              "development/extending-types",
+              "development/adding-modules"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

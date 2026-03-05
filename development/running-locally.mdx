@@ -1,0 +1,334 @@
+---
+title: "Running Locally"
+description: "Development server and local testing workflows"
+icon: "play"
+---
+
+## Development Server
+
+The CAFH Platform uses a combined frontend and backend development server powered by Vite and Express.
+
+### Start the Server
+
+```bash
+npm run dev
+```
+
+This command runs `tsx server.ts`, which:
+1. Starts the Express backend on port 3000
+2. Initializes the Vite development server
+3. Enables Hot Module Replacement (HMR) for React components
+4. Starts the email queue worker
+
+<Info>
+  The server runs on `http://localhost:3000` by default.
+</Info>
+
+## Available Scripts
+
+From `package.json`:
+
+<CodeGroup>
+```bash npm run dev
+npm run dev
+```
+
+```bash npm run build
+npm run build
+```
+
+```bash npm run preview
+npm run preview
+```
+
+```bash npm run lint
+npm run lint
+```
+</CodeGroup>
+
+### Script Details
+
+<ParamField path="dev" type="command">
+  **tsx server.ts**
+  
+  Starts the development server with hot reload. TypeScript files are executed directly without compilation.
+</ParamField>
+
+<ParamField path="build" type="command">
+  **vite build**
+  
+  Builds the frontend for production. Output goes to `dist/` directory.
+</ParamField>
+
+<ParamField path="preview" type="command">
+  **vite preview**
+  
+  Previews the production build locally before deployment.
+</ParamField>
+
+<ParamField path="lint" type="command">
+  **tsc --noEmit**
+  
+  Type-checks TypeScript files without emitting output. Catches type errors before runtime.
+</ParamField>
+
+## Development Workflow
+
+<Steps>
+  <Step title="Start the server">
+    ```bash
+    npm run dev
+    ```
+
+    Wait for:
+    ```
+    Server running on http://localhost:3000
+    ```
+  </Step>
+
+  <Step title="Access the application">
+    Open your browser to:
+    - **Home**: http://localhost:3000
+    - **Admin**: http://localhost:3000/#/admin
+    - **Member**: http://localhost:3000/#/member/dashboard
+  </Step>
+
+  <Step title="Login with demo credentials">
+    <Tabs>
+      <Tab title="Admin">
+        - Email: `admin@cafh.cl`
+        - Password: `admin123`
+        - Access: Full platform access
+      </Tab>
+      <Tab title="Member">
+        - Email: `miembro@cafh.cl`
+        - Password: `miembro123`
+        - Access: Member portal only
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Make changes">
+    Edit any `.tsx` or `.ts` file. The browser will automatically reload thanks to HMR.
+
+    Example: Edit `App.tsx` to add a new route:
+    ```tsx App.tsx
+    <Route path="/test" element={
+      <PublicLayoutWrapper>
+        <div>Test Page</div>
+      </PublicLayoutWrapper>
+    } />
+    ```
+
+    Save the file and the browser updates instantly.
+  </Step>
+
+  <Step title="Check for type errors">
+    ```bash
+    npm run lint
+    ```
+
+    Fix any TypeScript errors before committing.
+  </Step>
+</Steps>
+
+## Hot Module Replacement (HMR)
+
+Vite provides instant feedback when you edit files:
+
+- **React components**: Updated without full page reload
+- **CSS/Tailwind**: Styles update instantly
+- **TypeScript files**: Recompiled and injected
+- **Server files**: Require manual restart
+
+<Warning>
+  Changes to `server.ts` require restarting the dev server manually.
+</Warning>
+
+## Data Persistence
+
+The platform uses `localStorage` for data storage. Your data persists between page reloads but is isolated per browser.
+
+### Storage Keys
+
+Data is stored under versioned keys like:
+- `cafh_blog_v1`
+- `cafh_contacts_v1`
+- `cafh_events_v1`
+
+### Reset Data
+
+To reset the database to defaults:
+
+<Steps>
+  <Step title="Open browser console">
+    Press F12 or right-click > Inspect
+  </Step>
+
+  <Step title="Clear localStorage">
+    ```javascript
+    localStorage.clear();
+    location.reload();
+    ```
+  </Step>
+</Steps>
+
+The next page load will reinitialize with mock data from `constants.ts`.
+
+## Backend API Endpoints
+
+The Express server provides these API endpoints:
+
+<CodeGroup>
+```bash Health Check
+curl http://localhost:3000/api/health
+```
+
+```bash Queue Email
+curl -X POST http://localhost:3000/api/email/queue \
+  -H "Content-Type: application/json" \
+  -d '{
+    "recipients": ["test@example.com"],
+    "subject": "Test",
+    "content": "<p>Hello</p>"
+  }'
+```
+
+```bash Queue Status
+curl http://localhost:3000/api/email/status
+```
+</CodeGroup>
+
+### Email Queue Worker
+
+The queue processes emails every 30 seconds:
+
+```typescript server.ts
+setInterval(processQueue, 30000);
+```
+
+Check the console for:
+```
+[Queue Worker] Processing 5 emails...
+```
+
+## Testing Different User Roles
+
+<Tabs>
+  <Tab title="SUPER_ADMIN">
+    Default admin account has full access:
+    - All admin modules
+    - User management
+    - Site settings
+    - CRM and campaigns
+  </Tab>
+
+  <Tab title="MEMBER">
+    Member account sees:
+    - Member dashboard
+    - Content library
+    - Events calendar
+    - Virtual meetings
+    - Profile customization
+  </Tab>
+
+  <Tab title="GUEST">
+    Logged-out users see:
+    - Public homepage
+    - Static pages (About, Method, Resources)
+    - Public blog posts
+    - Event listings
+  </Tab>
+</Tabs>
+
+## Debugging
+
+### Browser DevTools
+
+<Steps>
+  <Step title="Open DevTools">
+    Press F12 or Cmd+Option+I (Mac)
+  </Step>
+
+  <Step title="Check Console">
+    Look for:
+    - React errors
+    - Storage operations
+    - API calls
+  </Step>
+
+  <Step title="Inspect Network">
+    Monitor API requests to `/api/*` endpoints
+  </Step>
+
+  <Step title="View Application Storage">
+    Application tab > Local Storage > http://localhost:3000
+  </Step>
+</Steps>
+
+### Server Logs
+
+The console shows:
+- Server startup
+- Email queue processing
+- SMTP operations
+- Vite build updates
+
+```
+Server running on http://localhost:3000
+[Queue Worker] Processing 3 emails...
+[Simulated Send] To: test@example.com, Subject: Welcome
+```
+
+## Common Issues
+
+<Accordion title="Port already in use">
+  Change the port in `vite.config.ts`:
+  ```typescript
+  server: {
+    port: 3001,
+    host: '0.0.0.0',
+  },
+  ```
+</Accordion>
+
+<Accordion title="TypeScript errors">
+  Run linter to identify issues:
+  ```bash
+  npm run lint
+  ```
+  
+  Common fixes:
+  - Add missing type imports
+  - Fix type mismatches
+  - Update `types.ts` interfaces
+</Accordion>
+
+<Accordion title="Data not persisting">
+  - Check browser localStorage limits (5-10MB)
+  - Verify `db.init()` is called in `App.tsx`
+  - Clear and reinitialize if corrupted
+</Accordion>
+
+<Accordion title="HMR not working">
+  - Restart the dev server
+  - Clear browser cache
+  - Check for syntax errors
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Tech Stack" icon="layer-group" href="/development/tech-stack">
+    Learn about the technologies used
+  </Card>
+  <Card title="Folder Structure" icon="folder-tree" href="/development/folder-structure">
+    Understand the project organization
+  </Card>
+  <Card title="Build Process" icon="hammer" href="/development/build-process">
+    Build for production
+  </Card>
+  <Card title="Storage System" icon="database" href="/development/storage-system">
+    Dive into the data layer
+  </Card>
+</CardGroup>

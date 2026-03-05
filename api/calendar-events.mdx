@@ -1,0 +1,390 @@
+---
+title: 'Calendar Events API'
+description: 'Manage virtual meeting events and Zoom integrations'
+icon: 'calendar'
+---
+
+## Overview
+
+The Calendar Events API (also accessible as `db.meetings`) manages virtual meeting events, particularly Zoom meetings with agenda, media references, and feedback integration.
+
+---
+
+## Event Management
+
+### getAll
+
+Retrieve all calendar events.
+
+```typescript
+db.meetings.getAll(): CalendarEvent[]
+```
+
+<ResponseField name="events" type="CalendarEvent[]">
+  Array of all calendar events
+</ResponseField>
+
+**Example:**
+
+```typescript
+const events = db.meetings.getAll();
+const upcoming = events.filter(e => 
+  new Date(e.date) > new Date()
+);
+```
+
+---
+
+### getById
+
+Get a specific event by ID.
+
+```typescript
+db.meetings.getById(id: string): CalendarEvent | undefined
+```
+
+<ParamField path="id" type="string" required>
+  Event ID
+</ParamField>
+
+<ResponseField name="event" type="CalendarEvent | undefined">
+  The event if found
+</ResponseField>
+
+**Example:**
+
+```typescript
+const event = db.meetings.getById('ev_123');
+if (event) {
+  console.log('Event:', event.title, event.meetingUrl);
+}
+```
+
+---
+
+### create
+
+Create a new calendar event.
+
+```typescript
+db.meetings.create(
+  data: Omit<CalendarEvent, 'id'>
+): CalendarEvent
+```
+
+<ParamField path="data" type="Omit<CalendarEvent, 'id'>" required>
+  Event data (ID auto-generated)
+</ParamField>
+
+<ResponseField name="event" type="CalendarEvent">
+  The created event with generated ID
+</ResponseField>
+
+**Example:**
+
+```typescript
+const event = db.meetings.create({
+  title: 'Weekly Meditation Session',
+  date: '2024-03-20',
+  day: '20',
+  month: 'mar',
+  time: '19:00',
+  location: 'Online',
+  type: 'Online',
+  color: '#4f46e5',
+  platform: 'Zoom',
+  meetingUrl: 'https://zoom.us/j/123456789',
+  zoomId: '123456789',
+  zoomPassword: 'cafh2024',
+  eventStatus: 'Programada',
+  agendaItems: [
+    {
+      id: 'ag_1',
+      order: 1,
+      title: 'Introducción',
+      description: 'Bienvenida y presentación',
+      durationMinutes: 10
+    },
+    {
+      id: 'ag_2',
+      order: 2,
+      title: 'Meditación Guiada',
+      durationMinutes: 30
+    }
+  ]
+});
+```
+
+---
+
+### save
+
+Update an existing event.
+
+```typescript
+db.meetings.save(event: CalendarEvent): CalendarEvent
+```
+
+<ParamField path="event" type="CalendarEvent" required>
+  Complete event object with updates
+</ParamField>
+
+<ResponseField name="event" type="CalendarEvent">
+  The saved event
+</ResponseField>
+
+**Example:**
+
+```typescript
+const event = db.meetings.getById('ev_123');
+if (event) {
+  event.eventStatus = 'En curso';
+  event.zoomPassword = 'newpass123';
+  db.meetings.save(event);
+}
+```
+
+---
+
+### delete
+
+Delete an event.
+
+```typescript
+db.meetings.delete(id: string): void
+```
+
+<ParamField path="id" type="string" required>
+  Event ID to delete
+</ParamField>
+
+**Example:**
+
+```typescript
+db.meetings.delete('ev_123');
+```
+
+---
+
+## Zoom Widget Configuration
+
+### getZoomConfig
+
+Get the global Zoom widget configuration.
+
+```typescript
+db.meetings.getZoomConfig(): ZoomWidgetConfig
+```
+
+<ResponseField name="config" type="ZoomWidgetConfig">
+  Zoom widget display settings
+</ResponseField>
+
+**Example:**
+
+```typescript
+const config = db.meetings.getZoomConfig();
+console.log('Join button text:', config.joinButtonText);
+```
+
+---
+
+### updateZoomConfig
+
+Update Zoom widget configuration.
+
+```typescript
+db.meetings.updateZoomConfig(
+  cfg: ZoomWidgetConfig
+): ZoomWidgetConfig
+```
+
+<ParamField path="cfg" type="ZoomWidgetConfig" required>
+  New configuration
+</ParamField>
+
+<ResponseField name="config" type="ZoomWidgetConfig">
+  The updated configuration
+</ResponseField>
+
+**Example:**
+
+```typescript
+db.meetings.updateZoomConfig({
+  subtitle: 'Reunión Virtual CAFH',
+  activityName: 'Meditación Semanal',
+  joinButtonText: 'Unirse a la Sala',
+  zoomUrl: 'https://zoom.us/j/123456789?pwd=abc'
+});
+```
+
+---
+
+## CalendarEvent Type
+
+```typescript
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;           // YYYY-MM-DD
+  day: string;
+  month: string;
+  time: string;           // HH:MM
+  location: string;
+  type: 'Presencial' | 'Online' | 'Híbrido';
+  color: string;
+  
+  // Zoom Integration
+  meetingUrl?: string;
+  zoomId?: string;
+  zoomPassword?: string;
+  platform?: 'Zoom';
+  
+  // Event Management
+  eventStatus?: 'Programada' | 'En curso' | 'Finalizada';
+  organizerContactId?: string;  // Reference to Contact
+  
+  // Content
+  agendaItems?: MeetingAgendaItem[];
+  mediaRefs?: MeetingMediaRef[];
+  zoomWidgetConfig?: ZoomWidgetConfig;
+  
+  // Sync with Activity Calendar
+  linkedActivityId?: string;    // Linked to ActivityEvent
+  
+  // Legacy fields (maintained for compatibility)
+  agenda?: string[];
+  resources?: EventResource[];
+  seo?: SEOConfig;
+}
+```
+
+---
+
+## Related Types
+
+### MeetingAgendaItem
+
+```typescript
+interface MeetingAgendaItem {
+  id: string;
+  order: number;
+  title: string;
+  description?: string;
+  durationMinutes: number;
+}
+```
+
+### MeetingMediaRef
+
+Reference to media library assets (read-only).
+
+```typescript
+interface MeetingMediaRef {
+  mediaAssetId: string;
+  label?: string;
+}
+```
+
+### ZoomWidgetConfig
+
+```typescript
+interface ZoomWidgetConfig {
+  subtitle: string;
+  activityName: string;
+  joinButtonText: string;
+  zoomUrl: string;
+}
+```
+
+---
+
+## Working with Agenda
+
+### Add Agenda Items
+
+```typescript
+const event = db.meetings.getById('ev_123');
+if (event) {
+  event.agendaItems = [
+    {
+      id: 'ag_1',
+      order: 1,
+      title: 'Opening',
+      durationMinutes: 5
+    },
+    {
+      id: 'ag_2',
+      order: 2,
+      title: 'Main Session',
+      description: 'Guided meditation',
+      durationMinutes: 45
+    },
+    {
+      id: 'ag_3',
+      order: 3,
+      title: 'Q&A',
+      durationMinutes: 10
+    }
+  ];
+  db.meetings.save(event);
+}
+```
+
+---
+
+## Linking to Activity Calendar
+
+Events can be synchronized with the Activity Calendar module.
+
+```typescript
+// When creating a virtual ActivityEvent, it auto-syncs to meetings
+const activity = db.activities.create({
+  title: 'Meditation Workshop',
+  description: 'Weekly session',
+  category: 'cat_meditation',
+  tags: ['meditation'],
+  startDate: '2024-03-20',
+  endDate: '2024-03-20',
+  startTime: '19:00',
+  endTime: '20:00',
+  modality: 'Virtual',
+  status: 'Publicado',
+  zoomUrl: 'https://zoom.us/j/123',
+  featuredInDashboard: true
+});
+
+// This automatically creates a CalendarEvent
+const event = db.meetings.getById(activity.linkedMeetingId);
+```
+
+---
+
+## Event Status Workflow
+
+1. **Programada** → Event created, not yet started
+2. **En curso** → Event is currently happening
+3. **Finalizada** → Event completed
+
+```typescript
+// Update status as event progresses
+const event = db.meetings.getById('ev_123');
+if (event) {
+  event.eventStatus = 'En curso';
+  db.meetings.save(event);
+}
+```
+
+---
+
+## Integration with Feedback
+
+After an event, members can submit feedback (see Feedback API).
+
+```typescript
+// Check if user has pending feedback for event
+const hasPending = db.feedback.hasBlockingFeedback(userId);
+if (hasPending) {
+  console.log('User must submit feedback before joining next event');
+}
+```

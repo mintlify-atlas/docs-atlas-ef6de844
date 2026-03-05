@@ -1,0 +1,479 @@
+---
+title: 'Gamification'
+description: 'Award badges, track participation, and manage community rankings'
+---
+
+# Gamification
+
+Recognize member engagement through a badge system, participation tracking, and community rankings. Gamification increases retention and fosters friendly competition.
+
+## Gamification Module
+
+Navigate to **Meetings Module → Gamificación** tab.
+
+From `MeetingsModule.tsx:lines 733`:
+
+> Asigna reconocimientos y visualiza la participación de la comunidad.
+
+## Badge System
+
+Award digital badges to members for achievements and milestones.
+
+### Badge Types
+
+From `types.ts:lines 679`:
+
+```typescript
+type BadgeType = 'estrella' | 'medalla_bronce' | 'medalla_plata' | 'medalla_oro' | 'especial';
+```
+
+### Badge Configuration
+
+Each badge type has associated metadata:
+
+From `MeetingsModule.tsx:lines 31-37`:
+
+```typescript
+const BADGE_CONFIG: Record<BadgeType, { 
+  emoji: string; 
+  label: string; 
+  color: string; 
+  points: number 
+}> = {
+  estrella: { 
+    emoji: '⭐', 
+    label: 'Estrella', 
+    color: 'bg-yellow-50 text-yellow-700 border-yellow-200', 
+    points: 20 
+  },
+  medalla_bronce: { 
+    emoji: '🥉', 
+    label: 'Bronce', 
+    color: 'bg-orange-50 text-orange-700 border-orange-200', 
+    points: 30 
+  },
+  medalla_plata: { 
+    emoji: '🥈', 
+    label: 'Plata', 
+    color: 'bg-slate-50 text-slate-700 border-slate-200', 
+    points: 50 
+  },
+  medalla_oro: { 
+    emoji: '🥇', 
+    label: 'Oro', 
+    color: 'bg-amber-50 text-amber-700 border-amber-200', 
+    points: 80 
+  },
+  especial: { 
+    emoji: '🏆', 
+    label: 'Especial', 
+    color: 'bg-purple-50 text-purple-700 border-purple-200', 
+    points: 100 
+  },
+};
+```
+
+### Badge Structure
+
+From `types.ts:lines 682-690`:
+
+```typescript
+interface MemberBadge {
+  id: string;
+  userId: string;
+  type: BadgeType;
+  label: string;            // Custom title (e.g., "Participación Excepcional")
+  reason: string;           // Why badge was awarded
+  awardedAt: string;        // ISO timestamp
+  awardedBy: string;        // Admin userId
+}
+```
+
+## Awarding Badges
+
+<Steps>
+  <Step title="Open Award Dialog">
+    Click **Otorgar Reconocimiento** button at top-right of Gamification tab.
+  </Step>
+
+  <Step title="Select Member">
+    Choose recipient from dropdown (all users in system).
+  </Step>
+
+  <Step title="Choose Badge Type">
+    Select badge level:
+    
+    | Type | Points | Use Case |
+    |------|--------|----------|
+    | Estrella (⭐) | 20 | Consistent attendance |
+    | Bronce (🥉) | 30 | Active participation |
+    | Plata (🥈) | 50 | Outstanding contribution |
+    | Oro (🥇) | 80 | Leadership or mentorship |
+    | Especial (🏆) | 100 | Exceptional achievement |
+  </Step>
+
+  <Step title="Add Custom Label">
+    Enter badge title (e.g., "Asistencia Perfecta Marzo").
+  </Step>
+
+  <Step title="Provide Reason">
+    Explain why badge is being awarded (visible to member).
+    
+    ```
+    Asististe a todas las sesiones del mes y participaste activamente en las discusiones.
+    ```
+  </Step>
+
+  <Step title="Award Badge">
+    Click **Otorgar**. Badge is immediately added to member profile.
+  </Step>
+</Steps>
+
+From `MeetingsModule.tsx:lines 747-759`.
+
+### Award Implementation
+
+```typescript
+const handleAward = () => {
+  if (!awardForm.userId || !awardForm.label) return;
+  
+  db.gamification.awardBadge({
+    userId: awardForm.userId,
+    type: awardForm.type,
+    label: awardForm.label,
+    reason: awardForm.reason,
+    awardedAt: new Date().toISOString(),
+    awardedBy: currentUser?.id || 'admin',
+  });
+  
+  setShowAward(false);
+  refresh();
+};
+```
+
+From `MeetingsModule.tsx:lines 746-760`.
+
+## Participation Tracking
+
+Automatic logging of member event attendance.
+
+### Participation Record
+
+From `types.ts:lines 693-701`:
+
+```typescript
+interface ParticipationRecord {
+  id: string;
+  userId: string;
+  eventId: string;
+  eventTitle: string;
+  participatedAt: string;     // ISO timestamp
+  feedbackSubmitted: boolean;
+  feedbackBlocksNext: boolean;
+}
+```
+
+### Automatic Creation
+
+When member joins an event:
+
+1. System creates `ParticipationRecord`
+2. Increments user's participation count
+3. Adds points based on event type
+4. Updates ranking
+
+<Info>
+  Participation tracking requires integration with the event registration system. Ensure events call `db.gamification.recordParticipation(userId, eventId)` when members join.
+</Info>
+
+## Community Ranking
+
+Display top participants by accumulated points.
+
+### Ranking Calculation
+
+From `MeetingsModule.tsx:lines 780-795`:
+
+```typescript
+interface RankingEntry {
+  userId: string;
+  userName: string;
+  points: number;          // Total from badges + participation
+  badges: number;          // Count of badges
+  participations: number;  // Count of events attended
+}
+
+const ranking = db.gamification.getRanking();
+// Returns sorted array (highest points first)
+```
+
+### Points System
+
+**Sources:**
+
+1. **Badges**: Points defined in `BADGE_CONFIG`
+   - Estrella: 20 pts
+   - Bronce: 30 pts
+   - Plata: 50 pts
+   - Oro: 80 pts
+   - Especial: 100 pts
+
+2. **Participation**: Points per event (configurable)
+   - Default: 10 pts per event
+
+**Total Points:**
+
+```typescript
+totalPoints = (badge1.points + badge2.points + ...) + (participations * 10)
+```
+
+### Ranking Display
+
+From `MeetingsModule.tsx:lines 775-797`:
+
+```tsx
+<div className="space-y-3">
+  {ranking.slice(0, 10).map((entry, i) => (
+    <div key={entry.userId} className="flex items-center gap-4">
+      {/* Position Badge */}
+      <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold ${
+        i === 0 ? 'bg-amber-100 text-amber-600' :    // 🥇 Gold
+        i === 1 ? 'bg-slate-100 text-slate-600' :    // 🥈 Silver
+        i === 2 ? 'bg-orange-100 text-orange-600' :  // 🥉 Bronze
+        'bg-slate-50 text-slate-400'                 // #4+
+      }`}>
+        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+      </div>
+      
+      {/* Member Info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-slate-700 truncate">{entry.userName}</p>
+        <p className="text-xs text-slate-400">
+          {entry.participations} actividades · {entry.badges} reconocimientos
+        </p>
+      </div>
+      
+      {/* Points */}
+      <span className="text-sm font-extrabold text-cafh-indigo">{entry.points} pts</span>
+    </div>
+  ))}
+</div>
+```
+
+**Visual Hierarchy:**
+
+- **Top 3**: Special emoji badges (🥇🥈🥉)
+- **4-10**: Gray numbered badges
+- **Highlight**: First place gets amber/gold styling
+
+### Ranking in Analytics
+
+Ranking also appears in Calendar Analytics tab.
+
+From `CalendarModule.tsx:lines 531-550`:
+
+- Same data source: `db.gamification.getRanking()`
+- Shows top 8 members
+- Includes participation and badge counts
+
+## Badge Gallery (Member View)
+
+Members see their badges in a **Badge Gallery** widget (implementation in member dashboard).
+
+### Gallery Structure
+
+From `MeetingsModule.tsx:lines 800-825`:
+
+```tsx
+<div className="grid grid-cols-2 gap-3">
+  {badges.filter(b => b.userId === currentUser.id).map(badge => {
+    const cfg = BADGE_CONFIG[badge.type];
+    return (
+      <div key={badge.id} className={`p-4 rounded-xl border ${cfg.color}`}>
+        <div className="text-3xl text-center mb-2">{cfg.emoji}</div>
+        <p className="text-xs font-bold text-center">{badge.label}</p>
+        <p className="text-[10px] text-slate-400 text-center mt-1">
+          {new Date(badge.awardedAt).toLocaleDateString('es-CL')}
+        </p>
+        {/* Hover: Show reason */}
+        <div className="tooltip">{badge.reason}</div>
+      </div>
+    );
+  })}
+</div>
+```
+
+### Empty State
+
+If member has no badges:
+
+```
+🏆
+Aún no tienes reconocimientos.
+¡Participa en actividades para comenzar a ganarlos!
+```
+
+## Analytics Integration
+
+Gamification data enriches other analytics:
+
+### Calendar Analytics
+
+From `CalendarModule.tsx:lines 490-550`:
+
+- **Participation ranking**: Top 8 members
+- **Points distribution**: Visual breakdown
+- **Badge count**: Total per member
+
+### Member Profiles
+
+(Implementation in member system):
+
+- **Badge showcase**: Grid of earned badges
+- **Participation history**: Timeline of attended events
+- **Current rank**: Position in community ranking
+- **Next milestone**: Progress to next badge level
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Consistent" icon="calendar">
+    Award badges regularly (weekly or monthly) to maintain motivation.
+  </Card>
+  
+  <Card title="Personalize Labels" icon="edit">
+    Use custom labels to make badges meaningful ("Liderazgo Marzo" vs "Badge #5").
+  </Card>
+  
+  <Card title="Explain Reasons" icon="message-circle">
+    Always provide clear reason text. Members value recognition when they understand why.
+  </Card>
+  
+  <Card title="Celebrate Top Performers" icon="trophy">
+    Highlight ranking leaders in newsletters or community announcements.
+  </Card>
+</CardGroup>
+
+## Badge Award Guidelines
+
+### Estrella (⭐) — 20 pts
+
+**Criteria:**
+- Attended 3+ events in a month
+- Submitted all feedback surveys
+- Basic participation
+
+**Example Label:** "Asistencia Consistente"
+
+### Medalla Bronce (🥉) — 30 pts
+
+**Criteria:**
+- Active in discussions
+- Attended 5+ events
+- Helped other members
+
+**Example Label:** "Participación Activa"
+
+### Medalla Plata (🥈) — 50 pts
+
+**Criteria:**
+- Led a breakout session
+- Attended 8+ events in a month
+- High-quality feedback
+
+**Example Label:** "Contribución Destacada"
+
+### Medalla Oro (🥇) — 80 pts
+
+**Criteria:**
+- Mentored new members
+- 100% attendance for 2+ months
+- Exceptional community support
+
+**Example Label:** "Líder Comunitario"
+
+### Especial (🏆) — 100 pts
+
+**Criteria:**
+- Organized an event
+- 6+ months of consistent participation
+- Significant positive impact
+
+**Example Label:** "Miembro Excepcional del Año"
+
+## Troubleshooting
+
+### Badge Not Appearing in Member Profile
+
+- Verify badge was saved: Check `db.gamification.getBadges()`
+- Confirm `userId` matches member's actual ID
+- Check member profile widget is fetching badges
+- Review browser console for errors
+
+### Points Not Updating
+
+- Ensure badge points are defined in `BADGE_CONFIG`
+- Verify participation records are being created
+- Check ranking calculation logic
+- Refresh ranking: `db.gamification.refreshRanking()`
+
+### Ranking Order Wrong
+
+- Confirm sorting is by points (descending)
+- Check for tied scores (implement secondary sort by date)
+- Verify all badges have correct point values
+- Recalculate: `db.gamification.recalculateAllPoints()`
+
+### Member Can't Access Events After Feedback
+
+- Check `ParticipationRecord.feedbackBlocksNext` is `false` after submission
+- Verify feedback submission updates record correctly
+- Review blocking logic in event registration flow
+- Test feedback completion flow end-to-end
+
+## Advanced Features
+
+### Streaks
+
+(Not yet implemented — future enhancement)
+
+Track consecutive weeks/months of participation:
+
+```typescript
+interface ParticipationStreak {
+  userId: string;
+  currentStreak: number;    // Consecutive events
+  longestStreak: number;
+  lastParticipation: string;
+}
+```
+
+### Leaderboards
+
+(Partially implemented)
+
+Expand ranking system:
+
+- **All-time**: Total points
+- **Monthly**: Points earned this month
+- **Activity-specific**: Points from specific event types
+
+### Badge Tiers
+
+(Future enhancement)
+
+Multiple levels per badge type:
+
+```typescript
+interface BadgeTier {
+  type: BadgeType;
+  tier: 1 | 2 | 3;  // Bronze I, Bronze II, Bronze III
+  pointsRequired: number;
+}
+```
+
+## Related Documentation
+
+- [Feedback System](/admin/feedback-system) - Required for participation tracking
+- [Zoom Integration](/admin/zoom-integration) - Events that generate participation
+- [Calendar Management](/admin/calendar-management) - Activity events and analytics

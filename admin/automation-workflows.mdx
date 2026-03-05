@@ -1,0 +1,375 @@
+---
+title: 'Automation Workflows'
+description: 'Build intelligent automation workflows with visual flow builder'
+---
+
+# Automation Workflows
+
+Automation workflows allow you to create sophisticated, multi-step email sequences and contact management rules that execute automatically based on triggers.
+
+## Visual Flow Builder
+
+Workflows are built using a **drag-and-drop visual canvas** powered by React Flow (`AutomationFlowBuilder.tsx`).
+
+<Frame>
+  <img src="/images/automation-flow.png" alt="Automation Flow Builder" />
+</Frame>
+
+## Workflow Components
+
+### Triggers
+
+Workflows start with a trigger event:
+
+| Trigger Type | Description |
+|--------------|-------------|
+| `contact_added_to_list` | Contact joins a specific list |
+| `tag_added` | Tag is applied to contact |
+| `campaign_sent` | Campaign is delivered |
+| `campaign_opened` | Contact opens a campaign |
+| `campaign_clicked` | Contact clicks link in campaign |
+| `no_activity` | Contact inactive for X days |
+| `scheduled_date` | Specific date/time reached |
+| `manual` | Manually triggered by admin |
+
+From `types.ts:lines 383-400`:
+
+```typescript
+interface AutomationTrigger {
+  type: AutomationTriggerType;
+  listId?: string;
+  tag?: string;
+  campaignId?: string;
+  inactiveDays?: number;
+  scheduledAt?: string;
+}
+```
+
+### Node Types
+
+Build your workflow using these action nodes:
+
+#### Send Email
+
+Send a personalized email to the contact.
+
+```typescript
+interface SendEmailNode {
+  id: string;
+  type: 'send_email';
+  subject: string;
+  content: string;       // HTML content
+  fromName?: string;
+}
+```
+
+**Visual Properties:**
+- Color: Blue (`#2563eb`)
+- Icon: Mail
+- Label: "Enviar Email"
+
+#### Wait
+
+Pause the workflow for a specified duration.
+
+```typescript
+interface WaitNode {
+  id: string;
+  type: 'wait';
+  amount: number;
+  unit: 'minutes' | 'hours' | 'days';
+}
+```
+
+**Example:** Wait 3 days before next step
+
+**Visual Properties:**
+- Color: Orange (`#d97706`)
+- Icon: Clock
+- Display: "Esperar {amount} {unit}"
+
+#### Condition
+
+Create branching logic based on contact behavior.
+
+```typescript
+interface ConditionNode {
+  id: string;
+  type: 'condition';
+  check: 'email_opened' | 'email_clicked' | 'has_tag' | 'in_list';
+  value?: string;
+  branchTrue: AutomationNode[];
+  branchFalse: AutomationNode[];
+}
+```
+
+**Visual Properties:**
+- Color: Green (`#059669`)
+- Icon: GitBranch
+- Two output handles: "SÍ" (green) and "NO" (red)
+
+<Info>
+  Condition nodes create two separate branches in the flow. Each branch can contain its own sequence of nodes.
+</Info>
+
+#### Update Tag
+
+Add or remove tags from the contact.
+
+```typescript
+interface UpdateTagNode {
+  id: string;
+  type: 'update_tag';
+  action: 'add' | 'remove';
+  tag: string;
+}
+```
+
+**Visual Properties:**
+- Color: Pink (`#db2777`)
+- Icon: Tag
+- Display: "+ Agregar" or "− Quitar" + tag name
+
+#### Move to List
+
+Transfer contact to a different list.
+
+```typescript
+interface MoveToListNode {
+  id: string;
+  type: 'move_to_list';
+  listId: string;
+}
+```
+
+**Visual Properties:**
+- Color: Cyan (`#0891b2`)
+- Icon: List
+
+#### End
+
+Terminate the workflow.
+
+```typescript
+interface EndNode {
+  id: string;
+  type: 'end';
+}
+```
+
+**Visual Properties:**
+- Color: Gray (`#6b7280`)
+- Icon: Flag
+
+## Creating a Workflow
+
+<Steps>
+  <Step title="Access Automations">
+    Navigate to **CRM → Automations** in the admin panel.
+  </Step>
+
+  <Step title="Define Trigger">
+    Select the trigger type and configure its parameters:
+    
+    ```typescript
+    // Example: Contact added to list
+    {
+      type: 'contact_added_to_list',
+      listId: 'list_new_members'
+    }
+    ```
+  </Step>
+
+  <Step title="Build Flow">
+    Add nodes from the node palette:
+    
+    1. **Send Email**: Welcome message
+    2. **Wait**: 2 days
+    3. **Condition**: Check if email opened
+    4. **Branch True**: Send follow-up
+    5. **Branch False**: Send reminder
+    6. **End**: Terminate flow
+    
+    Drag nodes to position them on the canvas.
+  </Step>
+
+  <Step title="Configure Nodes">
+    Click each node to edit:
+    - Email subject and content
+    - Wait duration
+    - Condition checks
+    - Tag names
+    - List IDs
+  </Step>
+
+  <Step title="Save & Activate">
+    Set workflow status:
+    - `Draft`: Not executing
+    - `Active`: Running for new triggers
+    - `Paused`: Temporarily disabled
+  </Step>
+</Steps>
+
+## Node Rendering
+
+From `AutomationFlowBuilder.tsx:lines 42-112`, nodes render with:
+
+- **Header**: Icon + type label (uppercase)
+- **Body**: Primary label (e.g., email subject, wait duration)
+- **Sublabel**: Secondary info (e.g., "De: Admin")
+- **Handles**: Input (top) and output (bottom) connection points
+
+Condition nodes have **two output handles** for branching:
+
+```tsx
+<Handle type="source" position={Position.Bottom} id="yes" 
+  style={{ left: '33%', background: '#10b981' }} />
+<Handle type="source" position={Position.Bottom} id="no" 
+  style={{ left: '67%', background: '#ef4444' }} />
+```
+
+## Workflow Execution
+
+When a trigger fires:
+
+1. System creates an `AutomationExecution` record
+2. Workflow processes nodes sequentially
+3. Each step is logged with timestamp
+4. Execution status: `running` → `completed` or `failed`
+
+From `types.ts:lines 454-464`:
+
+```typescript
+interface AutomationExecution {
+  id: string;
+  automationId: string;
+  contactId: string;
+  contactEmail: string;
+  startedAt: string;
+  completedAt?: string;
+  currentStep: number;
+  status: 'running' | 'completed' | 'failed';
+  log: string[];
+}
+```
+
+## Analytics
+
+View workflow performance metrics:
+
+```typescript
+stats: {
+  totalExecutions: number;
+  completed: number;
+  emailsSent: number;
+  tagsApplied: number;
+}
+```
+
+These are displayed in the automation card in the CRM interface.
+
+## Example Workflows
+
+### Welcome Series
+
+```
+Trigger: contact_added_to_list (New Members)
+  ↓
+Send Email: "Welcome to the Community"
+  ↓
+Wait: 2 days
+  ↓
+Condition: email_opened?
+  ├─ Yes → Send Email: "Here's what's next"
+  └─ No → Send Email: "We'd love to hear from you"
+  ↓
+End
+```
+
+### Re-engagement Campaign
+
+```
+Trigger: no_activity (30 days)
+  ↓
+Send Email: "We miss you!"
+  ↓
+Wait: 1 week
+  ↓
+Condition: email_clicked?
+  ├─ Yes → Update Tag: Add "re-engaged"
+  └─ No → Move to List: "Inactive Contacts"
+  ↓
+End
+```
+
+## Canvas Controls
+
+The flow builder includes:
+
+- **Pan**: Click and drag canvas background
+- **Zoom**: Mouse wheel or zoom controls
+- **MiniMap**: Overview of entire workflow (bottom-right)
+- **Node Dragging**: Reposition nodes (positions saved automatically)
+
+From `AutomationFlowBuilder.tsx:lines 292-318`:
+
+```tsx
+<ReactFlow
+  nodes={rfNodes}
+  edges={rfEdges}
+  onNodeDragStop={onNodeDragStop}  // Persists positions
+  fitView
+  fitViewOptions={{ padding: 0.3 }}
+  minZoom={0.3}
+  maxZoom={1.5}
+/>
+```
+
+<Warning>
+  Node positions are saved in `nodePositions` map. Don't manually edit this data as it's managed by the flow builder.
+</Warning>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start Simple" icon="seedling">
+    Begin with 2-3 nodes, then expand as you learn.
+  </Card>
+  
+  <Card title="Test Thoroughly" icon="vial">
+    Use manual trigger to test workflows before activating.
+  </Card>
+  
+  <Card title="Monitor Executions" icon="chart-line">
+    Check execution logs regularly for failures.
+  </Card>
+  
+  <Card title="Use Conditions Wisely" icon="code-branch">
+    Too many branches create complexity. Keep flows linear when possible.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Workflow Not Triggering
+
+- Verify workflow status is `Active`
+- Check trigger configuration (correct listId, tag, etc.)
+- Ensure contacts match trigger criteria
+
+### Nodes Not Executing
+
+- Review execution logs for error messages
+- Verify SMTP configuration for email nodes
+- Check that list/tag IDs exist in the system
+
+### Condition Branches Not Working
+
+- Ensure condition check matches actual data (e.g., `has_tag` requires exact tag match)
+- Verify both branches have nodes (or explicit End nodes)
+
+## Related Documentation
+
+- [Email Campaigns](/admin/email-campaigns) - Standalone campaign sending
+- [SMTP Configuration](/admin/smtp-configuration) - Required for email nodes
+- [CRM Lists](/member/crm) - Creating lists and segments

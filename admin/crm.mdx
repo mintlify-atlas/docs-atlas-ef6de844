@@ -1,0 +1,400 @@
+---
+title: 'CRM System Overview'
+description: 'Complete contact relationship management and engagement tracking'
+icon: 'users'
+---
+
+The CRM (Customer Relationship Management) system is the central hub for managing contacts, tracking engagement, and orchestrating communication campaigns across the CAFH Platform.
+
+## Overview
+
+The CRM module (`AdminViews.tsx:622-1279`) provides comprehensive contact management with:
+
+- Contact database with advanced filtering
+- Email campaign orchestration
+- Engagement metrics and scoring
+- List and segment management
+- Mailrelay integration
+- Bulk operations and automation
+
+## Contact Structure
+
+Contacts are stored with detailed profile information (`types.ts:268-286`):
+
+```typescript
+export interface Contact {
+  id: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: 'Subscribed' | 'Unsubscribed' | 'Bounced' | 'Pending' | 'new';
+  lastContact: string;
+  tags: string[];
+  notes?: string;
+  engagementScore?: number; // 0-100
+  mailrelayId?: string; // ID in Mailrelay system
+  city?: string;
+  country?: string;
+  createdAt?: string;
+  listIds?: string[]; // Arrays of list IDs
+}
+```
+
+## Accessing the CRM
+
+<Steps>
+  <Step title="Navigate to CRM">
+    Go to **Admin Panel → Gestión de Contactos** from the main dashboard
+  </Step>
+  <Step title="View Dashboard">
+    See KPIs including total contacts, email metrics, and engagement rates
+  </Step>
+  <Step title="Browse Contacts">
+    Use the contacts table with pagination (50 contacts per page)
+  </Step>
+  <Step title="Apply Filters">
+    Filter by status, lists, tags, or search by name/email
+  </Step>
+</Steps>
+
+## Dashboard KPIs
+
+The CRM dashboard displays real-time metrics (`AdminViews.tsx:83-120`):
+
+<CardGroup cols={2}>
+  <Card title="Total Contactos CRM" icon="users">
+    Total contacts with breakdown of subscribed count
+  </Card>
+  <Card title="Emails Enviados" icon="envelope">
+    Total emails sent with open rate percentage
+  </Card>
+  <Card title="Tasa de Apertura" icon="chart-line">
+    Email open rate as percentage
+  </Card>
+  <Card title="Tasa de Efectividad" icon="bullseye">
+    Subscribed contacts / total contacts ratio
+  </Card>
+</CardGroup>
+
+### KPI Calculations
+
+KPIs are calculated from live data (`AdminViews.tsx:41-47`):
+
+```javascript
+const totalContacts = contacts.length;
+const subscribedContacts = contacts.filter(c => c.status === 'Subscribed').length;
+const totalEmailsSent = emailLogs.length;
+const openedEmails = emailLogs.filter(l => 
+  l.status === 'Opened' || l.status === 'Clicked'
+).length;
+const openRate = totalEmailsSent > 0 
+  ? Math.round((openedEmails / totalEmailsSent) * 100) 
+  : 0;
+```
+
+## Contact Statuses
+
+| Status | Description | Badge Color |
+|--------|-------------|-------------|
+| **Subscribed** | Active, receives emails | Green |
+| **Pending** | Awaiting confirmation | Amber |
+| **Unsubscribed** | Opted out of emails | Gray |
+| **Bounced** | Email address invalid/rejected | Red |
+| **new** | Newly created, not processed | Blue |
+
+## Contact Details Panel
+
+Click any contact to open the detailed off-canvas panel (`AdminViews.tsx:284-513`):
+
+### Information Sections
+
+<Tabs>
+  <Tab title="Quick Actions">
+    - **Email**: Send individual message
+    - **Sincronizar**: Sync with Mailrelay
+    - **Métricas**: View engagement statistics
+  </Tab>
+  <Tab title="Contact Info">
+    - Phone number
+    - Location (city, country)
+    - Subscription status
+    - Mailrelay ID
+  </Tab>
+  <Tab title="Lists & Tags">
+    - Assigned contact lists
+    - Applied tags
+    - Add/remove tags inline
+  </Tab>
+  <Tab title="Email History">
+    - All emails sent to contact
+    - Delivery status
+    - Open/click tracking
+    - Campaign names
+  </Tab>
+  <Tab title="Metrics">
+    - Total emails sent
+    - Open rate
+    - Click count
+    - Engagement score (0-100)
+  </Tab>
+</Tabs>
+
+## Engagement Scoring
+
+Engagement scores help identify active vs. inactive contacts:
+
+### Score Calculation
+
+Scores are calculated based on:
+
+- Email opens: +5 points each
+- Email clicks: +10 points each
+- Recent activity: Weighted by recency
+- Campaign participation: Bonus points
+
+### Score Ranges
+
+- **High (70-100)**: Very engaged, green indicator
+- **Medium (40-69)**: Moderately engaged, amber indicator
+- **Low (0-39)**: Needs re-engagement, red indicator
+
+<Tip>
+Use engagement scores to segment your audience for targeted campaigns. Send re-engagement campaigns to contacts with scores below 40.
+</Tip>
+
+## Search and Filtering
+
+The CRM provides powerful filtering options (`AdminViews.tsx:643-672`):
+
+### Search Query
+
+Search box filters by:
+- Contact name (case-insensitive)
+- Email address
+- Tags
+
+### Filter Options
+
+<Tabs>
+  <Tab title="By Status">
+    - All statuses
+    - ✅ Subscribed
+    - 🕐 Pending
+    - 🚫 Unsubscribed
+    - ⚠️ Bounced
+  </Tab>
+  <Tab title="By List">
+    - All lists
+    - Individual contact lists
+    - Shows contact count per list
+  </Tab>
+  <Tab title="By Tag">
+    - All tags
+    - Any tag applied to contacts
+    - Auto-populated from contact data
+  </Tab>
+</Tabs>
+
+### Clear Filters
+
+Click the **Limpiar** button to reset all filters to defaults.
+
+## Bulk Operations
+
+Select multiple contacts to perform bulk actions (`AdminViews.tsx:1023-1082`):
+
+<Steps>
+  <Step title="Select Contacts">
+    Use checkboxes to select individual contacts or "Select All"
+  </Step>
+  <Step title="Choose Action">
+    Actions appear in the toolbar when contacts are selected
+  </Step>
+  <Step title="Execute">
+    Confirm the action to apply to all selected contacts
+  </Step>
+</Steps>
+
+### Available Bulk Actions
+
+| Action | Description | Icon |
+|--------|-------------|------|
+| **Enviar Email** | Send mass email to selected | ✉️ |
+| **Agregar Tag** | Apply tag to all selected | # |
+| **Agregar a Lista** | Add to contact list | 📋 |
+| **Suscribir** | Change status to Subscribed | ✓ |
+| **Desuscribir** | Change status to Unsubscribed | ✕ |
+| **Eliminar** | Permanently delete contacts | 🗑️ |
+
+<Warning>
+Bulk delete operations are permanent and cannot be undone. Always confirm you have the right selection before deleting.
+</Warning>
+
+## Email Metrics Dashboard
+
+When "Ver Métricas" is enabled, view detailed email analytics (`AdminViews.tsx:870-969`):
+
+### Charts and Visualizations
+
+1. **Email Activity Chart**: 7-day trend of sent vs. opened emails
+2. **Queue Status**: Real-time sending queue with throttle limits
+3. **Rate Metrics**: Open rate, click rate, bounce rate cards
+
+### List-Specific Metrics
+
+Filter metrics by contact list to see:
+- Performance of specific segments
+- Engagement by audience type
+- Comparative analysis between lists
+
+## Email Queue and Throttling
+
+The platform implements hourly send limits to avoid spam flags (`AdminViews.tsx:914-950`):
+
+```javascript
+const queueStatus = {
+  pending: 45,        // Emails in queue
+  sent: 120,          // Total sent
+  failed: 3,          // Failed deliveries
+  sentCountThisHour: 68,  // Hourly counter
+  limit: 80           // cPanel hourly limit
+}
+```
+
+<Note>
+The system automatically throttles sending to stay within your hosting provider's hourly email limit (typically 80 emails/hour for shared hosting).
+</Note>
+
+## Mailrelay Integration
+
+Sync contacts with external Mailrelay system (`storage.ts:805-812`):
+
+<Steps>
+  <Step title="Open Contact Panel">
+    Click a contact to open their detail view
+  </Step>
+  <Step title="Click Sincronizar">
+    Press the sync button with refresh icon
+  </Step>
+  <Step title="API Call">
+    System calls Mailrelay API to create/update contact
+  </Step>
+  <Step title="Store Mailrelay ID">
+    The returned ID is saved to the contact record
+  </Step>
+</Steps>
+
+### Sync Function
+
+```javascript
+db.mailrelay.syncContact(contact)
+// Returns updated contact with mailrelayId
+```
+
+## Contact Import
+
+Bulk import contacts from CSV or JSON (`storage.ts:650-664`):
+
+<Steps>
+  <Step title="Click Carga Masiva">
+    Open the import modal from the CRM toolbar
+  </Step>
+  <Step title="Choose Format">
+    Select CSV or JSON file format
+  </Step>
+  <Step title="Map Fields">
+    Map your file columns to contact fields
+  </Step>
+  <Step title="Preview">
+    Review the first 5 rows to verify mapping
+  </Step>
+  <Step title="Import">
+    Confirm to add all contacts to the database
+  </Step>
+</Steps>
+
+### CSV Format Example
+
+```csv
+name,email,phone,city,country,status,tags
+Juan Pérez,juan@example.com,+56912345678,Santiago,Chile,Subscribed,"member,2024"
+María González,maria@example.com,+56987654321,Valparaíso,Chile,Pending,"lead,retreat"
+```
+
+<Warning>
+Large imports (>500 contacts) may hit localStorage limits. Consider batch imports of 250-500 contacts at a time.
+</Warning>
+
+## Contact Editor
+
+Create or edit contacts with the dedicated editor modal (`AdminViews.tsx:622`):
+
+### Editable Fields
+
+- **Name**: Full name or display name
+- **Email**: Primary email address (unique)
+- **Phone**: Contact phone number
+- **City / Country**: Location information
+- **Status**: Subscription status
+- **Tags**: Comma-separated tags
+- **Lists**: Assign to one or more lists
+- **Notes**: Internal notes (not visible to contact)
+
+### Validation
+
+- Email must be valid format
+- Email must be unique in database
+- Name is required
+- Phone format is validated for Chilean numbers
+
+## SMTP Configuration
+
+Configure email sending settings (`storage.ts:717-726`):
+
+```typescript
+export interface SMTPConfig {
+  host: string;      // e.g., 'mail.cafh.cl'
+  port: string;      // e.g., '465'
+  secure: boolean;   // SSL/TLS
+  user: string;      // SMTP username
+  pass: string;      // SMTP password
+  fromEmail: string; // Sender address
+  fromName: string;  // Sender name
+}
+```
+
+<Note>
+SMTP credentials are stored in localStorage. For production, migrate sensitive config to environment variables.
+</Note>
+
+## Data Storage
+
+CRM data is stored in localStorage (`storage.ts:10`):
+
+| Key | Content |
+|-----|----------|
+| `cafh_contacts_v1` | Array of Contact objects |
+| `cafh_crm_lists_v1` | Contact list definitions |
+| `cafh_email_logs_v1` | Email send history |
+| `cafh_email_metrics_v1` | Aggregate email metrics |
+| `cafh_smtp_config_v1` | SMTP server configuration |
+
+### Storage Limits
+
+- **Contacts**: ~2,000-5,000 (depending on field data)
+- **Email Logs**: Limited to prevent overflow
+- **Lists**: Unlimited (lightweight objects)
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Contact Lists" icon="list" href="/admin/contact-lists">
+    Manage lists and segmentation
+  </Card>
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Configure admin access permissions
+  </Card>
+</CardGroup>

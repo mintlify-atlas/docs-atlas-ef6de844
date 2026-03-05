@@ -1,0 +1,391 @@
+---
+title: 'Blog Management'
+description: 'Create, publish, and manage blog posts with rich content'
+icon: 'rss'
+---
+
+The Blog Management system allows you to create and publish articles with rich media, manage categories, and configure how blog content displays on your site.
+
+## Blog Post Structure
+
+Blog posts are defined with these fields (`types.ts:101-111`):
+
+```typescript
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  imageUrl: string;
+  date: string;
+  author: string;
+  content?: string; // Full HTML/Markdown content
+  seo?: SEOConfig;
+}
+```
+
+## Creating a Blog Post
+
+<Steps>
+  <Step title="Access Blog Manager">
+    Navigate to **CMS → Blog** in the admin panel
+  </Step>
+  <Step title="Click New Post">
+    Enter title, author, and select a category
+  </Step>
+  <Step title="Write Excerpt">
+    Compose a 1-2 sentence summary (shown in listings)
+  </Step>
+  <Step title="Add Featured Image">
+    Upload or select an image from the Media Library
+  </Step>
+  <Step title="Write Content">
+    Use the rich text editor to compose your post
+  </Step>
+  <Step title="Configure SEO">
+    Add meta title, description, and keywords
+  </Step>
+  <Step title="Publish">
+    Save as draft or publish immediately
+  </Step>
+</Steps>
+
+## Blog Configuration
+
+The blog section appearance is controlled by global settings (`types.ts:113-120`):
+
+```typescript
+export interface BlogConfig {
+  sectionTitle: string;
+  sectionSubtitle: string;
+  postsToShow: number;
+  autoPlay: boolean;
+  autoPlaySpeed: number;
+  cardStyle: 'Standard' | 'Compact' | 'Minimal';
+}
+```
+
+### Configuring Blog Display
+
+Access blog settings at **CMS → Blog → Settings** (`storage.ts:365-379`):
+
+<Tabs>
+  <Tab title="Section Title">
+    The heading displayed above the blog section on the home page.
+    
+    Default: `"Últimas Publicaciones"`
+  </Tab>
+  <Tab title="Section Subtitle">
+    Descriptive text below the title.
+    
+    Default: `"Explora artículos, reflexiones y recursos para tu camino espiritual"`
+  </Tab>
+  <Tab title="Posts to Show">
+    Number of posts to display in the carousel or grid.
+    
+    Range: 1-12 posts
+  </Tab>
+  <Tab title="AutoPlay">
+    Enable automatic carousel rotation.
+    
+    Default: `false`
+  </Tab>
+  <Tab title="AutoPlay Speed">
+    Milliseconds between auto-rotation (if enabled).
+    
+    Default: `5000` (5 seconds)
+  </Tab>
+  <Tab title="Card Style">
+    Visual style for post cards.
+    
+    Options: `Standard`, `Compact`, `Minimal`
+  </Tab>
+</Tabs>
+
+## Blog Categories
+
+Organize posts into categories for better navigation:
+
+### Common Categories
+
+- **Reflexiones**: Spiritual reflections and teachings
+- **Comunidad**: Community news and updates
+- **Recursos**: Educational resources and guides
+- **Eventos**: Event announcements and recaps
+- **Testimonios**: Member testimonials and stories
+
+<Tip>
+Keep categories broad and consistent. Use tags for more granular classification.
+</Tip>
+
+## Writing Content
+
+### Rich Text Editor
+
+The content field supports HTML and Markdown:
+
+```html
+<!-- HTML Example -->
+<h2>Heading</h2>
+<p>Paragraph with <strong>bold</strong> and <em>italic</em> text.</p>
+<ul>
+  <li>List item 1</li>
+  <li>List item 2</li>
+</ul>
+<img src="/media/image.jpg" alt="Description" />
+```
+
+```markdown
+<!-- Markdown Example -->
+## Heading
+
+Paragraph with **bold** and *italic* text.
+
+- List item 1
+- List item 2
+
+![Description](/media/image.jpg)
+```
+
+### Content Best Practices
+
+<AccordionGroup>
+  <Accordion title="Structure">
+    - Start with an engaging introduction
+    - Use H2/H3 headings to break up sections
+    - Keep paragraphs short (3-5 sentences)
+    - End with a clear conclusion or CTA
+  </Accordion>
+
+  <Accordion title="Readability">
+    - Write at an 8th-grade reading level
+    - Use active voice
+    - Avoid jargon unless defined
+    - Include examples and stories
+  </Accordion>
+
+  <Accordion title="Media">
+    - Add images every 300-500 words
+    - Use descriptive alt text
+    - Optimize images (WebP, under 200KB)
+    - Consider adding videos or audio
+  </Accordion>
+
+  <Accordion title="SEO">
+    - Include focus keyword in title
+    - Use keyword in first paragraph
+    - Add internal links to related content
+    - Write unique meta descriptions
+  </Accordion>
+</AccordionGroup>
+
+## Featured Images
+
+Every blog post requires a featured image:
+
+### Image Specifications
+
+- **Recommended Size**: 1200x630px (Open Graph standard)
+- **Format**: JPEG or WebP for photos, PNG for graphics
+- **File Size**: Under 200KB for fast loading
+- **Aspect Ratio**: 16:9 or 1.91:1
+
+### Selecting Images
+
+You can add images from:
+
+1. **Media Library**: Previously uploaded assets
+2. **Upload New**: Upload directly during post creation
+3. **External URL**: Link to images hosted elsewhere
+
+<Warning>
+Using external URLs may break if the source moves or deletes the image. Upload to Media Library for reliability.
+</Warning>
+
+## Post Excerpts
+
+The excerpt is a brief summary shown in post listings:
+
+- **Length**: 150-160 characters (about 25 words)
+- **Purpose**: Entice readers to click through
+- **Tone**: Descriptive and engaging, not salesy
+- **Call-to-Action**: Optional, subtle ("Descubre cómo...")
+
+### Good Excerpt Examples
+
+✅ "Explora las raíces históricas de la meditación discursiva y cómo esta práctica transforma la vida cotidiana desde adentro."
+
+✅ "Conoce los testimonios de tres miembros sobre su viaje de transformación personal en la comunidad Cafh."
+
+### Poor Excerpt Examples
+
+❌ "En este artículo hablamos sobre la meditación." (Too vague)
+
+❌ "La meditación discursiva es una práctica espiritual que consiste en reflexionar sobre temas profundos utilizando la mente..." (Too long, repeats title)
+
+## Blog Storage and Management
+
+Blog data is stored in localStorage (`storage.ts:364-379`):
+
+| Key | Content |
+|-----|----------|
+| `cafh_blog_v1` | Array of blog posts |
+| `cafh_blog_config_v1` | Blog section configuration |
+
+### Adding Posts Programmatically
+
+```javascript
+const newPost = {
+  id: `post_${Date.now()}`,
+  title: "Mi Nuevo Artículo",
+  excerpt: "Una breve descripción del artículo",
+  category: "Reflexiones",
+  imageUrl: "/media/featured-image.jpg",
+  date: new Date().toISOString().split('T')[0],
+  author: "Nombre del Autor",
+  content: "<p>Contenido completo del artículo...</p>",
+  seo: {
+    title: "Mi Nuevo Artículo | Cafh",
+    description: "Una breve descripción del artículo",
+    keywords: ["meditación", "espiritualidad", "cafh"]
+  }
+};
+
+db.blog.add(newPost);
+```
+
+## Blog SEO Optimization
+
+### Meta Title
+
+```
+{Post Title} | {Site Name}
+```
+
+Example: `La Meditación Discursiva Explicada | Cafh`
+
+### Meta Description
+
+Write a unique description for each post (150-160 characters):
+
+```
+Descubre cómo la meditación discursiva transforma tu vida cotidiana 
+mediante la reflexión profunda y el trabajo interior consciente.
+```
+
+### Keywords
+
+Include 5-10 relevant keywords:
+
+```javascript
+[
+  "meditación discursiva",
+  "espiritualidad práctica",
+  "cafh método",
+  "desarrollo espiritual",
+  "vida interior"
+]
+```
+
+### Open Graph Tags
+
+For social media sharing:
+
+- **og:title**: Same as meta title
+- **og:description**: Same as meta description
+- **og:image**: Featured image URL (1200x630px)
+- **og:type**: `article`
+
+## Publishing Workflow
+
+<Steps>
+  <Step title="Draft Phase">
+    Write and revise content without making it public
+  </Step>
+  <Step title="Internal Review">
+    Share draft link with editors for feedback
+  </Step>
+  <Step title="SEO Check">
+    Verify meta tags, keywords, and image optimization
+  </Step>
+  <Step title="Schedule or Publish">
+    Set publication date or publish immediately
+  </Step>
+  <Step title="Promote">
+    Share on social media, email newsletter, and community channels
+  </Step>
+  <Step title="Monitor">
+    Track views, engagement, and feedback
+  </Step>
+</Steps>
+
+## Blog Metrics
+
+Track blog performance with these metrics (available in Dashboard):
+
+- **Total Posts**: Number of published articles
+- **Views**: Individual post view counts
+- **Top Content**: Most-viewed posts
+- **Categories**: Distribution of posts by category
+- **Recent Activity**: Latest published posts
+
+<Note>
+View counts are tracked automatically when users visit post pages (`storage.ts:427-447`).
+</Note>
+
+## Content Guidelines
+
+### Voice and Tone
+
+- **Voice**: Authentic, warm, knowledgeable
+- **Tone**: Respectful, inclusive, encouraging
+- **Style**: Clear, accessible, contemplative
+
+### Formatting Standards
+
+- Use sentence case for headings
+- Include whitespace between paragraphs
+- Limit sentences to 20-25 words
+- Break up long blocks with lists or quotes
+
+### Inclusive Language
+
+- Use gender-neutral terms when possible
+- Avoid assumptions about reader background
+- Define specialized terms on first use
+- Respect diverse spiritual perspectives
+
+## Updating Configuration
+
+Update blog settings programmatically (`storage.ts:369-379`):
+
+```javascript
+const newConfig = {
+  sectionTitle: "Reflexiones y Recursos",
+  sectionSubtitle: "Contenido para tu camino espiritual",
+  postsToShow: 6,
+  autoPlay: true,
+  autoPlaySpeed: 6000,
+  cardStyle: "Standard"
+};
+
+db.blog.updateConfig(newConfig);
+```
+
+<Tip>
+Changes to blog configuration take effect immediately without requiring a page refresh.
+</Tip>
+
+## Related Documentation
+
+<CardGroup cols={3}>
+  <Card title="CMS Overview" icon="layout" href="/admin/cms-overview">
+    Content management system overview
+  </Card>
+  <Card title="Media Library" icon="photo-film" href="/admin/media-library">
+    Upload and manage images for posts
+  </Card>
+  <Card title="Pages Editor" icon="file-pen" href="/admin/pages-editor">
+    Create custom landing pages
+  </Card>
+</CardGroup>

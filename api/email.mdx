@@ -1,0 +1,375 @@
+---
+title: 'Email Sending API'
+description: 'Send emails, manage queue, and track delivery status'
+icon: 'envelope'
+---
+
+## Overview
+
+The Email API provides functionality for sending individual and mass emails through an SMTP-based queue system with rate limiting.
+
+---
+
+## Email Operations
+
+### send
+
+Send an email to a single contact.
+
+```typescript
+db.emails.send(
+  contactId: string,
+  subject: string,
+  content: string
+): Promise<EmailLog | null>
+```
+
+<ParamField path="contactId" type="string" required>
+  ID of the contact to send to
+</ParamField>
+
+<ParamField path="subject" type="string" required>
+  Email subject line
+</ParamField>
+
+<ParamField path="content" type="string" required>
+  Email HTML content
+</ParamField>
+
+<ResponseField name="emailLog" type="EmailLog | null">
+  Log entry for the queued email, or null if contact not found
+</ResponseField>
+
+**Example:**
+
+```typescript
+const log = await db.emails.send(
+  'c_12345',
+  'Welcome to CAFH',
+  '<p>Hola! Welcome to our community...</p>'
+);
+
+if (log) {
+  console.log('Email queued:', log.id);
+}
+```
+
+---
+
+### sendMass
+
+Send the same email to multiple recipients.
+
+```typescript
+db.emails.sendMass(
+  recipients: string[],
+  subject: string,
+  content: string
+): Promise<{ success: boolean }>
+```
+
+<ParamField path="recipients" type="string[]" required>
+  Array of email addresses
+</ParamField>
+
+<ParamField path="subject" type="string" required>
+  Email subject line
+</ParamField>
+
+<ParamField path="content" type="string" required>
+  Email HTML content
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Object with success status
+</ResponseField>
+
+**Example:**
+
+```typescript
+const subscribedContacts = db.crm.getAll()
+  .filter(c => c.status === 'Subscribed')
+  .map(c => c.email);
+
+const result = await db.emails.sendMass(
+  subscribedContacts,
+  'Monthly Newsletter',
+  '<h1>March Newsletter</h1><p>...content...</p>'
+);
+
+console.log('Mass email result:', result.success);
+```
+
+---
+
+## Email Logs
+
+### getLogs
+
+Retrieve email delivery logs.
+
+```typescript
+db.emails.getLogs(contactId?: string): EmailLog[]
+```
+
+<ParamField path="contactId" type="string" optional>
+  Filter logs for a specific contact
+</ParamField>
+
+<ResponseField name="logs" type="EmailLog[]">
+  Array of email logs
+</ResponseField>
+
+**Example:**
+
+```typescript
+// All logs
+const allLogs = db.emails.getLogs();
+
+// Logs for specific contact
+const contactLogs = db.emails.getLogs('c_12345');
+```
+
+---
+
+### getMetrics
+
+Get email performance metrics.
+
+```typescript
+db.emails.getMetrics(): EmailMetrics
+```
+
+<ResponseField name="metrics" type="EmailMetrics">
+  Aggregated email statistics
+</ResponseField>
+
+**Example:**
+
+```typescript
+const metrics = db.emails.getMetrics();
+console.log('Total sent:', metrics.totalSent);
+console.log('Open rate:', metrics.openRate);
+console.log('Click rate:', metrics.clickRate);
+```
+
+---
+
+## SMTP Configuration
+
+### getSMTPConfig
+
+Retrieve current SMTP settings.
+
+```typescript
+db.emails.getSMTPConfig(): SMTPConfig
+```
+
+<ResponseField name="config" type="SMTPConfig">
+  SMTP configuration object
+</ResponseField>
+
+**Example:**
+
+```typescript
+const config = db.emails.getSMTPConfig();
+console.log('SMTP Host:', config.host);
+console.log('From:', config.fromEmail);
+```
+
+---
+
+### updateSMTPConfig
+
+Update SMTP configuration.
+
+```typescript
+db.emails.updateSMTPConfig(config: SMTPConfig): SMTPConfig
+```
+
+<ParamField path="config" type="SMTPConfig" required>
+  Complete SMTP configuration
+</ParamField>
+
+<ResponseField name="config" type="SMTPConfig">
+  The updated configuration
+</ResponseField>
+
+**Example:**
+
+```typescript
+db.emails.updateSMTPConfig({
+  host: 'mail.cafh.cl',
+  port: '465',
+  secure: true,
+  user: 'no-reply@cafh.cl',
+  pass: 'your-password',
+  fromEmail: 'no-reply@cafh.cl',
+  fromName: 'Cafh'
+});
+```
+
+---
+
+## Queue Management
+
+### getQueueStatus
+
+Check the email queue and rate limiting status.
+
+```typescript
+db.emails.getQueueStatus(): Promise<{
+  pending: number;
+  sent: number;
+  failed: number;
+  sentCountThisHour: number;
+  limit: number;
+}>
+```
+
+<ResponseField name="status" type="object">
+  Queue statistics and rate limit info
+</ResponseField>
+
+**Example:**
+
+```typescript
+const status = await db.emails.getQueueStatus();
+console.log(`Queue: ${status.pending} pending`);
+console.log(`Rate limit: ${status.sentCountThisHour}/${status.limit} this hour`);
+```
+
+---
+
+## Backend Queue API
+
+The backend server provides REST endpoints for the email queue system.
+
+### POST /api/email/queue
+
+Add emails to the processing queue.
+
+```typescript
+fetch('/api/email/queue', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    recipients: ['user@example.com'],
+    subject: 'Hello',
+    content: '<p>Content</p>'
+  })
+});
+```
+
+**Request Body:**
+
+<ParamField path="recipients" type="string[]" required>
+  Array of recipient email addresses
+</ParamField>
+
+<ParamField path="subject" type="string" required>
+  Email subject
+</ParamField>
+
+<ParamField path="content" type="string" required>
+  HTML email content
+</ParamField>
+
+**Response:**
+
+```json
+{
+  "message": "3 emails added to queue",
+  "queueSize": 15
+}
+```
+
+---
+
+### GET /api/email/status
+
+Get queue status and statistics.
+
+```typescript
+fetch('/api/email/status')
+  .then(res => res.json())
+  .then(data => console.log(data));
+```
+
+**Response:**
+
+```json
+{
+  "pending": 12,
+  "sent": 450,
+  "failed": 3,
+  "sentCountThisHour": 65,
+  "limit": 80
+}
+```
+
+---
+
+## Types
+
+### EmailLog
+
+```typescript
+interface EmailLog {
+  id: string;
+  contactId: string;
+  subject: string;
+  sentAt: string;
+  status: 'Delivered' | 'Opened' | 'Clicked' | 'Bounced' | 'Failed' | 'Queued';
+  openedAt?: string;
+  clickedAt?: string;
+  errorMessage?: string;
+  campaignName?: string;
+}
+```
+
+### EmailMetrics
+
+```typescript
+interface EmailMetrics {
+  totalSent: number;
+  openRate: number;
+  clickRate: number;
+  bounceRate: number;
+  history: { 
+    date: string; 
+    sent: number; 
+    opened: number; 
+    clicked: number 
+  }[];
+}
+```
+
+### SMTPConfig
+
+```typescript
+interface SMTPConfig {
+  host: string;
+  port: string;
+  secure: boolean;
+  user: string;
+  pass: string;
+  fromEmail: string;
+  fromName: string;
+}
+```
+
+---
+
+## Rate Limiting
+
+The queue system respects SMTP provider rate limits:
+
+- Default limit: **80 emails per hour**
+- Configurable via `MAX_EMAILS_PER_HOUR` env variable
+- Queue automatically processes pending emails
+- Hourly counter resets every 60 minutes
+
+<Info>
+Emails are queued locally and processed by the backend worker every 30 seconds.
+</Info>

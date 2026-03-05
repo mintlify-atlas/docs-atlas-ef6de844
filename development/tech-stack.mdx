@@ -1,0 +1,363 @@
+---
+title: "Tech Stack"
+description: "Technologies powering the CAFH Platform"
+icon: "layer-group"
+---
+
+## Overview
+
+CAFH Platform is built with modern web technologies focused on developer experience, type safety, and performance.
+
+## Frontend Stack
+
+<CardGroup cols={2}>
+  <Card title="React 19.2.3" icon="react">
+    UI library with latest features including hooks, suspense, and concurrent rendering
+  </Card>
+  <Card title="TypeScript 5.8.2" icon="ts">
+    Type-safe JavaScript with full IDE support
+  </Card>
+  <Card title="React Router 7.10.1" icon="route">
+    Hash-based routing for SPA navigation
+  </Card>
+  <Card title="Tailwind CSS" icon="palette">
+    Utility-first CSS framework (configured inline)
+  </Card>
+</CardGroup>
+
+### React 19 Features Used
+
+```tsx App.tsx
+import React, { useEffect } from 'react';
+import { HashRouter, Routes, Route } from 'react-router-dom';
+
+// React 19 automatic batching, concurrent features
+const App: React.FC = () => {
+  useEffect(() => {
+    db.init();  // Initialize storage on mount
+  }, []);
+
+  return (
+    <HashRouter>
+      <Routes>
+        {/* Routes */}
+      </Routes>
+    </HashRouter>
+  );
+};
+```
+
+### TypeScript Configuration
+
+From `tsconfig.json`:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+```
+
+## Backend Stack
+
+<CardGroup cols={2}>
+  <Card title="Express 5.2.1" icon="server">
+    Web server framework for API endpoints
+  </Card>
+  <Card title="Nodemailer 8.0.1" icon="envelope">
+    Email sending with SMTP support
+  </Card>
+  <Card title="CORS 2.8.6" icon="shield">
+    Cross-origin resource sharing
+  </Card>
+  <Card title="dotenv 17.3.1" icon="key">
+    Environment variable management
+  </Card>
+</CardGroup>
+
+### Server Implementation
+
+```typescript server.ts
+import express from "express";
+import { createServer as createViteServer } from "vite";
+import nodemailer from "nodemailer";
+import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const app = express();
+const PORT = 3000;
+
+app.use(cors());
+app.use(express.json());
+
+// API Routes
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", time: new Date().toISOString() });
+});
+
+app.post("/api/email/queue", (req, res) => {
+  // Email queueing logic
+});
+
+// Vite middleware for dev server
+if (process.env.NODE_ENV !== "production") {
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+  });
+  app.use(vite.middlewares);
+}
+```
+
+## Build Tools
+
+<CardGroup cols={2}>
+  <Card title="Vite 6.2.0" icon="bolt">
+    Lightning-fast build tool and dev server
+  </Card>
+  <Card title="tsx 4.21.0" icon="terminal">
+    TypeScript execution for server
+  </Card>
+  <Card title="@vitejs/plugin-react 5.0.0" icon="puzzle">
+    Vite plugin for React Fast Refresh
+  </Card>
+</CardGroup>
+
+### Vite Configuration
+
+From `vite.config.ts`:
+
+```typescript vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  server: {
+    port: 3000,
+    host: '0.0.0.0',
+  },
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    }
+  }
+});
+```
+
+## UI Components & Libraries
+
+<CardGroup cols={3}>
+  <Card title="Lucide React 0.561.0" icon="icons">
+    600+ SVG icons
+  </Card>
+  <Card title="Recharts 3.6.0" icon="chart-line">
+    Analytics charts and graphs
+  </Card>
+  <Card title="@xyflow/react 12.10.1" icon="diagram">
+    Visual automation flow builder
+  </Card>
+  <Card title="React Markdown 10.1.0" icon="markdown">
+    Markdown rendering
+  </Card>
+</CardGroup>
+
+### Icon Usage
+
+```tsx
+import { Users, Mail, Calendar, Settings } from 'lucide-react';
+
+<Users className="w-5 h-5 text-blue-600" />
+<Mail className="w-4 h-4" />
+```
+
+### Charts Example
+
+```tsx
+import { LineChart, Line, XAxis, YAxis } from 'recharts';
+
+<LineChart width={600} height={300} data={emailMetrics}>
+  <XAxis dataKey="date" />
+  <YAxis />
+  <Line type="monotone" dataKey="sent" stroke="#8884d8" />
+</LineChart>
+```
+
+### Automation Flow Builder
+
+```tsx components/AutomationFlowBuilder.tsx
+import { ReactFlow, Node, Edge } from '@xyflow/react';
+
+<ReactFlow
+  nodes={flowNodes}
+  edges={flowEdges}
+  onNodesChange={onNodesChange}
+  onEdgesChange={onEdgesChange}
+/>
+```
+
+## Data Storage
+
+<Card title="localStorage" icon="database">
+  Browser-based data persistence with versioned keys and JSON serialization
+</Card>
+
+Implemented in `storage.ts`:
+
+```typescript storage.ts
+const KEYS = {
+  BLOG: 'cafh_blog_v1',
+  CONTACTS: 'cafh_contacts_v1',
+  EVENTS: 'cafh_events_v1',
+  // ... 30+ storage keys
+};
+
+const initStorage = <T>(key: string, initialData: T): T => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) {
+      localStorage.setItem(key, JSON.stringify(initialData));
+      return initialData;
+    }
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error(`Error accessing storage for ${key}`, e);
+    return initialData;
+  }
+};
+```
+
+## Type System
+
+All data structures are defined in `types.ts` with 50+ TypeScript interfaces:
+
+```typescript types.ts
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatarUrl: string;
+  tenantId: string;
+  interests: string[];
+  joinedDate: string;
+}
+
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  EDITOR = 'EDITOR',
+  MEMBER = 'MEMBER',
+  GUEST = 'GUEST'
+}
+
+export interface Contact {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: 'Subscribed' | 'Unsubscribed' | 'Bounced';
+  tags: string[];
+  engagementScore?: number;
+}
+```
+
+## Dependencies Overview
+
+From `package.json`:
+
+### Core Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|----------|
+| react | 19.2.3 | UI framework |
+| react-dom | 19.2.3 | React renderer |
+| typescript | 5.8.2 | Type system |
+| express | 5.2.1 | Backend server |
+| vite | 6.2.0 | Build tool |
+
+### UI & Components
+
+| Package | Version | Purpose |
+|---------|---------|----------|
+| lucide-react | 0.561.0 | Icons |
+| recharts | 3.6.0 | Charts |
+| @xyflow/react | 12.10.1 | Flow diagrams |
+| react-markdown | 10.1.0 | Markdown rendering |
+| react-router-dom | 7.10.1 | Routing |
+
+### Backend & Email
+
+| Package | Version | Purpose |
+|---------|---------|----------|
+| nodemailer | 8.0.1 | Email sending |
+| cors | 2.8.6 | CORS middleware |
+| dotenv | 17.3.1 | Environment config |
+| tsx | 4.21.0 | TS execution |
+
+## Why These Choices?
+
+<Accordion title="React 19">
+  Latest stable version with automatic batching, concurrent rendering, and improved hooks. Excellent TypeScript support.
+</Accordion>
+
+<Accordion title="TypeScript">
+  Catches bugs at compile time, provides IntelliSense, and improves maintainability. Essential for large codebases.
+</Accordion>
+
+<Accordion title="Vite">
+  Instant HMR, faster builds than Webpack, native ES modules, and excellent DX. Perfect for React development.
+</Accordion>
+
+<Accordion title="localStorage">
+  Simple, requires no backend database, works offline, and perfect for MVP. Can be replaced with PostgreSQL/MongoDB later.
+</Accordion>
+
+<Accordion title="Express">
+  Minimal, flexible, well-documented. Handles API routes and email queue efficiently.
+</Accordion>
+
+<Accordion title="Hash Router">
+  Works on any static host without server-side routing configuration. Easy deployment to GitHub Pages, Netlify, etc.
+</Accordion>
+
+## Browser Support
+
+Targeting modern browsers:
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+<Info>
+  IE11 is not supported due to ES2022 features and modern React.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Folder Structure" icon="folder-tree" href="/development/folder-structure">
+    Explore the project organization
+  </Card>
+  <Card title="Storage System" icon="database" href="/development/storage-system">
+    Understand data persistence
+  </Card>
+  <Card title="Build Process" icon="hammer" href="/development/build-process">
+    Learn about production builds
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Platform architecture overview
+  </Card>
+</CardGroup>

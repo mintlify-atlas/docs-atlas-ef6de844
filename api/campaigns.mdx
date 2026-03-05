@@ -1,0 +1,360 @@
+---
+title: 'Campaign Management API'
+description: 'Create, test, and launch email campaigns'
+icon: 'bullhorn'
+---
+
+## Overview
+
+The Campaigns API allows you to create targeted email campaigns, send test emails, and launch mass communications to segmented audiences.
+
+---
+
+## Campaign Operations
+
+### getAll
+
+Retrieve all campaigns.
+
+```typescript
+db.campaigns.getAll(): Campaign[]
+```
+
+<ResponseField name="campaigns" type="Campaign[]">
+  Array of all campaigns
+</ResponseField>
+
+**Example:**
+
+```typescript
+const campaigns = db.campaigns.getAll();
+console.log(`Total campaigns: ${campaigns.length}`);
+```
+
+---
+
+### getById
+
+Get a specific campaign by ID.
+
+```typescript
+db.campaigns.getById(id: string): Campaign | undefined
+```
+
+<ParamField path="id" type="string" required>
+  Campaign ID
+</ParamField>
+
+<ResponseField name="campaign" type="Campaign | undefined">
+  The campaign object if found
+</ResponseField>
+
+**Example:**
+
+```typescript
+const campaign = db.campaigns.getById('camp_123');
+if (campaign) {
+  console.log('Campaign:', campaign.name);
+}
+```
+
+---
+
+### create
+
+Create a new campaign.
+
+```typescript
+db.campaigns.create(
+  data: Omit<Campaign, 'id' | 'createdAt' | 'metrics'>
+): Campaign
+```
+
+<ParamField path="data.name" type="string" required>
+  Internal campaign name
+</ParamField>
+
+<ParamField path="data.subject" type="string" required>
+  Email subject line
+</ParamField>
+
+<ParamField path="data.content" type="string" required>
+  HTML email content
+</ParamField>
+
+<ParamField path="data.status" type="string" required>
+  Campaign status: 'Draft' | 'Scheduled' | 'Sent' | 'Testing'
+</ParamField>
+
+<ParamField path="data.recipientType" type="string" required>
+  Target audience: 'all' | 'subscribed' | 'list'
+</ParamField>
+
+<ParamField path="data.listId" type="string" optional>
+  Required if recipientType is 'list'
+</ParamField>
+
+<ParamField path="data.recipientCount" type="number" required>
+  Initial recipient count (set to 0)
+</ParamField>
+
+<ResponseField name="campaign" type="Campaign">
+  The created campaign with ID and timestamps
+</ResponseField>
+
+**Example:**
+
+```typescript
+const campaign = db.campaigns.create({
+  name: 'March Newsletter 2024',
+  subject: 'Novedades de Marzo - CAFH',
+  content: '<h1>Boletín de Marzo</h1><p>Contenido...</p>',
+  status: 'Draft',
+  recipientType: 'subscribed',
+  recipientCount: 0
+});
+```
+
+---
+
+### save
+
+Update an existing campaign.
+
+```typescript
+db.campaigns.save(campaign: Campaign): Campaign
+```
+
+<ParamField path="campaign" type="Campaign" required>
+  Complete campaign object with updates
+</ParamField>
+
+<ResponseField name="campaign" type="Campaign">
+  The updated campaign
+</ResponseField>
+
+**Example:**
+
+```typescript
+const campaign = db.campaigns.getById('camp_123');
+if (campaign) {
+  campaign.subject = 'Updated Subject';
+  campaign.status = 'Testing';
+  db.campaigns.save(campaign);
+}
+```
+
+---
+
+### delete
+
+Delete a campaign.
+
+```typescript
+db.campaigns.delete(id: string): void
+```
+
+<ParamField path="id" type="string" required>
+  Campaign ID to delete
+</ParamField>
+
+**Example:**
+
+```typescript
+db.campaigns.delete('camp_123');
+```
+
+---
+
+## Testing & Launch
+
+### sendTest
+
+Send a test email before launching.
+
+```typescript
+db.campaigns.sendTest(
+  campaignId: string,
+  testEmail: string
+): Promise<void>
+```
+
+<ParamField path="campaignId" type="string" required>
+  ID of the campaign to test
+</ParamField>
+
+<ParamField path="testEmail" type="string" required>
+  Email address to send test to
+</ParamField>
+
+**Example:**
+
+```typescript
+await db.campaigns.sendTest('camp_123', 'admin@cafh.cl');
+console.log('Test email sent');
+```
+
+<Info>
+Test emails are sent with "[TEST]" prefix in the subject line.
+</Info>
+
+---
+
+### launch
+
+Launch a campaign to all targeted recipients.
+
+```typescript
+db.campaigns.launch(
+  campaignId: string
+): Promise<{ recipientCount: number }>
+```
+
+<ParamField path="campaignId" type="string" required>
+  ID of the campaign to launch
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Object containing the number of recipients
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await db.campaigns.launch('camp_123');
+console.log(`Campaign launched to ${result.recipientCount} recipients`);
+```
+
+**How It Works:**
+
+1. Determines recipients based on `recipientType`:
+   - `'all'` → All contacts in CRM
+   - `'subscribed'` → Only contacts with status 'Subscribed'
+   - `'list'` → Contacts in the specified list
+
+2. Creates email log entries for each recipient
+
+3. Queues emails via backend API
+
+4. Updates campaign status to 'Sent' with metrics
+
+---
+
+## Campaign Type
+
+```typescript
+interface Campaign {
+  id: string;
+  name: string;          // Internal name
+  subject: string;       // Email subject
+  content: string;       // HTML content
+  status: 'Draft' | 'Scheduled' | 'Sent' | 'Testing';
+  recipientType: 'all' | 'subscribed' | 'list';
+  listId?: string;       // If recipientType === 'list'
+  recipientCount: number; // Snapshot at send time
+  createdAt: string;
+  sentAt?: string;
+  scheduledAt?: string;
+  testEmail?: string;    // Last test recipient
+  metrics: {
+    sent: number;
+    opened: number;
+    clicked: number;
+    bounced: number;
+  };
+}
+```
+
+---
+
+## Recipient Targeting
+
+### All Contacts
+
+```typescript
+db.campaigns.create({
+  name: 'Announcement',
+  subject: 'Important Update',
+  content: '<p>...</p>',
+  status: 'Draft',
+  recipientType: 'all',
+  recipientCount: 0
+});
+```
+
+### Subscribed Only
+
+```typescript
+db.campaigns.create({
+  name: 'Newsletter',
+  subject: 'Monthly News',
+  content: '<p>...</p>',
+  status: 'Draft',
+  recipientType: 'subscribed',
+  recipientCount: 0
+});
+```
+
+### Specific List
+
+```typescript
+db.campaigns.create({
+  name: 'VIP Event Invite',
+  subject: 'Exclusive Invitation',
+  content: '<p>...</p>',
+  status: 'Draft',
+  recipientType: 'list',
+  listId: 'list_vip_members',
+  recipientCount: 0
+});
+```
+
+---
+
+## Workflow Example
+
+```typescript
+// 1. Create campaign
+const campaign = db.campaigns.create({
+  name: 'Spring Campaign 2024',
+  subject: 'New Season, New Beginnings',
+  content: '<h1>Spring Newsletter</h1>',
+  status: 'Draft',
+  recipientType: 'subscribed',
+  recipientCount: 0
+});
+
+// 2. Send test
+await db.campaigns.sendTest(campaign.id, 'test@cafh.cl');
+
+// 3. Review and update
+campaign.content = '<h1>Updated Content</h1>';
+db.campaigns.save(campaign);
+
+// 4. Launch to all recipients
+const result = await db.campaigns.launch(campaign.id);
+console.log(`Sent to ${result.recipientCount} people`);
+
+// 5. Check metrics
+const updated = db.campaigns.getById(campaign.id);
+console.log('Metrics:', updated?.metrics);
+```
+
+---
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Test First" icon="flask">
+    Send test emails before launching to catch formatting issues
+  </Card>
+  <Card title="Segment Audiences" icon="users">
+    Use lists to target specific groups instead of blasting everyone
+  </Card>
+  <Card title="Monitor Metrics" icon="chart-line">
+    Track open and click rates to improve future campaigns
+  </Card>
+  <Card title="Rate Limits" icon="gauge">
+    Remember the queue respects SMTP rate limits (80/hour default)
+  </Card>
+</CardGroup>

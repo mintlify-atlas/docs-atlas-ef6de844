@@ -1,0 +1,427 @@
+---
+title: 'Feedback System'
+description: 'Configure post-event feedback surveys and view responses'
+---
+
+# Feedback System
+
+Collect structured feedback from members after events with customizable questionnaires. **Feedback is mandatory** — members cannot join future activities without completing surveys.
+
+## Feedback Workflow
+
+1. Member attends a virtual meeting or activity
+2. After event, system prompts feedback questionnaire
+3. Member must complete survey to unlock next activity
+4. Responses are logged with analytics
+
+From `MeetingsModule.tsx:lines 512`:
+
+> Este cuestionario es **obligatorio** para el miembro tras cada actividad. Sin responder, no puede unirse a futuras reuniones.
+
+## Questionnaire Editor
+
+Navigate to **Meetings Module → Feedback** tab.
+
+### Question Types
+
+Three question formats available:
+
+#### Rating (⭐)
+
+Star rating scale (1-5 stars).
+
+```typescript
+interface FeedbackQuestion {
+  id: string;
+  type: 'rating';
+  text: string;
+  // options not used
+}
+```
+
+**Visual:** 5 star icons in yellow boxes.
+
+From `MeetingsModule.tsx:lines 580-587`.
+
+#### Multiple Choice
+
+Radio button selection.
+
+```typescript
+interface FeedbackQuestion {
+  id: string;
+  type: 'multiple_choice';
+  text: string;
+  options: string[];  // ['Opción A', 'Opción B', ...]
+}
+```
+
+**Visual:** Radio circles with editable option text.
+
+From `MeetingsModule.tsx:lines 588-613`.
+
+#### Free Text
+
+Open-ended text response.
+
+```typescript
+interface FeedbackQuestion {
+  id: string;
+  type: 'text';
+  text: string;
+  // options not used
+}
+```
+
+**Visual:** Large text area placeholder.
+
+From `MeetingsModule.tsx:lines 614-619`.
+
+### Question Structure
+
+From `types.ts:lines 654-661`:
+
+```typescript
+interface FeedbackQuestion {
+  id: string;
+  order: number;
+  text: string;
+  type: 'rating' | 'multiple_choice' | 'text';
+  options?: string[];   // Only for multiple_choice
+  isActive: boolean;
+}
+```
+
+## Creating Questions
+
+<Steps>
+  <Step title="Access Feedback Tab">
+    Navigate to **Meetings Module → Feedback**.
+  </Step>
+
+  <Step title="Choose Question Type">
+    Click one of the type buttons:
+    - **Escala de valoración (⭐)**: Star rating
+    - **Opción múltiple**: Radio buttons
+    - **Texto libre**: Text area
+  </Step>
+
+  <Step title="Write Question Text">
+    Enter the question in the input field:
+    
+    ```
+    ¿Cómo calificarías la calidad del contenido?
+    ```
+  </Step>
+
+  <Step title="Configure Options (Multiple Choice Only)">
+    For multiple choice questions:
+    
+    1. Edit default option text
+    2. Click **+ Agregar opción** to add more
+    3. Click X to remove unwanted options
+    
+    Minimum 2 options required.
+  </Step>
+
+  <Step title="Set Active State">
+    Toggle **Activa/Inactiva** button:
+    
+    - **Activa**: Question appears in survey
+    - **Inactiva**: Hidden but preserved
+  </Step>
+
+  <Step title="Save Configuration">
+    Click **Guardar cambios** at top-right.
+    
+    Confirmation: Button changes to green **✓ Guardado** for 2 seconds.
+  </Step>
+</Steps>
+
+From `MeetingsModule.tsx:lines 476-520`.
+
+## Question Management
+
+### Reordering
+
+Use ↑↓ buttons in question card header to change order.
+
+```typescript
+const moveQuestion = (idx: number, dir: 'up' | 'down') => {
+  const arr = [...questions];
+  const swap = dir === 'up' ? idx - 1 : idx + 1;
+  if (swap < 0 || swap >= arr.length) return;
+  [arr[idx], arr[swap]] = [arr[swap], arr[idx]];
+  setQuestions(arr);
+};
+```
+
+From `MeetingsModule.tsx:lines 493-499`.
+
+### Editing
+
+Click anywhere in question card to edit inline:
+
+- **Text**: Editable input field
+- **Options**: Editable list items (multiple choice only)
+- **Active Toggle**: Click to enable/disable
+
+### Deleting
+
+Click X button in card header. Question is removed immediately.
+
+<Warning>
+  Deletion is **permanent**. There is no undo. Deleted questions are removed from all future surveys.
+</Warning>
+
+### Type Colors
+
+Visual distinction by question type:
+
+From `MeetingsModule.tsx:lines 501-505`:
+
+```typescript
+const typeConfig = {
+  rating: { 
+    label: 'Escala de valoración (⭐)', 
+    color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    icon: <Star size={13} /> 
+  },
+  multiple_choice: { 
+    label: 'Opción múltiple', 
+    color: 'bg-blue-50 text-blue-700 border-blue-200',
+    icon: <List size={13} /> 
+  },
+  text: { 
+    label: 'Texto libre', 
+    color: 'bg-green-50 text-green-700 border-green-200',
+    icon: <MessageSquare size={13} /> 
+  },
+};
+```
+
+## Feedback Responses
+
+Navigate to **Meetings Module → Respuestas** tab.
+
+### Response Structure
+
+From `types.ts:lines 664-676`:
+
+```typescript
+interface FeedbackResponse {
+  id: string;
+  eventId: string;           // Meeting or activity ID
+  userId: string;
+  userName: string;
+  submittedAt: string;       // ISO timestamp
+  answers: {
+    questionId: string;
+    questionText: string;
+    value: string | number;  // Number for rating, string otherwise
+  }[];
+  overallRating: number;     // Average 1-5 for analytics
+}
+```
+
+### Viewing Responses
+
+Responses display in paginated list:
+
+- **10 responses per page**
+- **Avatar**: First letter of userName
+- **Rating**: Star icons (⭐) with numeric value
+- **Event**: Associated eventId
+- **Date**: Formatted submission date
+
+From `MeetingsModule.tsx:lines 667-684`.
+
+### Response Detail Modal
+
+Click any response row to open detail view:
+
+```tsx
+<div className="fixed inset-0 z-50 flex items-center justify-center">
+  <div className="bg-white rounded-[2rem] shadow-2xl max-w-lg">
+    <div className="px-7 py-5 border-b">
+      <p className="font-bold">{selected.userName}</p>
+      <p className="text-xs text-slate-400">
+        {new Date(selected.submittedAt).toLocaleString('es-CL')}
+      </p>
+    </div>
+    <div className="p-7 space-y-5">
+      {/* Overall rating card */}
+      <div className="flex items-center gap-2 bg-yellow-50 rounded-xl p-4">
+        <span className="text-2xl">⭐</span>
+        <div>
+          <p className="text-xs font-bold text-slate-500">Valoración general</p>
+          <p className="text-2xl font-extrabold">{selected.overallRating.toFixed(1)} / 5</p>
+        </div>
+      </div>
+      {/* Individual answers */}
+      {selected.answers.map(ans => (
+        <div key={ans.questionId}>
+          <p className="text-xs font-bold text-slate-500 uppercase">{ans.questionText}</p>
+          <div className="bg-slate-50 rounded-xl px-4 py-3 text-sm">
+            {typeof ans.value === 'number' ? '⭐'.repeat(ans.value) : ans.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+```
+
+From `MeetingsModule.tsx:lines 696-725`.
+
+### Average Rating Calculation
+
+```typescript
+const avgRating = responses.length > 0
+  ? (responses.reduce((s, r) => s + r.overallRating, 0) / responses.length).toFixed(1)
+  : '—';
+```
+
+Displayed in subtitle: `{responses.length} respuestas · Valoración promedio: {avgRating} ⭐`
+
+From `MeetingsModule.tsx:lines 644-647`.
+
+## Mandatory Feedback Enforcement
+
+Feedback completion is tracked via `ParticipationRecord`.
+
+From `types.ts:lines 693-701`:
+
+```typescript
+interface ParticipationRecord {
+  id: string;
+  userId: string;
+  eventId: string;
+  eventTitle: string;
+  participatedAt: string;
+  feedbackSubmitted: boolean;
+  feedbackBlocksNext: boolean;  // true if NO response → blocks next activity
+}
+```
+
+### Blocking Logic
+
+1. Member attends event
+2. System creates `ParticipationRecord` with `feedbackSubmitted: false`
+3. When member tries to join next event:
+   - Check for pending feedback: `feedbackBlocksNext === true`
+   - If true, show "Complete pending surveys" message
+   - Block access until feedback submitted
+4. After feedback submission:
+   - Update record: `feedbackSubmitted: true`
+   - Set `feedbackBlocksNext: false`
+   - Grant access to next activity
+
+<Warning>
+  This enforcement requires integration with the member dashboard and event registration flow. Ensure these systems check `ParticipationRecord` status.
+</Warning>
+
+## Analytics Integration
+
+Feedback data appears in Calendar Analytics tab.
+
+From `CalendarModule.tsx:lines 503`:
+
+```typescript
+const responses = db.feedback.getResponses();
+const avgRating = responses.length > 0
+  ? (responses.reduce((s, r) => s + (r.overallRating || 0), 0) / responses.length).toFixed(1)
+  : '—';
+```
+
+**Displays:**
+- Total evaluation count
+- Average overall rating
+- Recent feedback list with star ratings
+
+See [Calendar Management](/admin/calendar-management#analytics-dashboard) for details.
+
+## Question Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep Questions Short" icon="align-left">
+    Limit to one sentence for clarity. Members complete surveys on mobile.
+  </Card>
+  
+  <Card title="Mix Question Types" icon="sliders">
+    Combine ratings (quantitative) with text (qualitative) for balanced feedback.
+  </Card>
+  
+  <Card title="Use Positive Language" icon="smile">
+    Frame questions constructively ("What did you enjoy?" vs "What was wrong?").
+  </Card>
+  
+  <Card title="Limit Total Questions" icon="list-checks">
+    Keep surveys to 5-7 questions max to maintain completion rates.
+  </Card>
+</CardGroup>
+
+## Example Questionnaires
+
+### Workshop Feedback
+
+```
+1. Rating: ¿Cómo calificarías la calidad del contenido?
+2. Multiple Choice: ¿Cuál fue tu parte favorita?
+   - Introducción teórica
+   - Ejercicios prácticos
+   - Sesión de preguntas
+   - Material de apoyo
+3. Text: ¿Qué temas te gustaría profundizar en futuras sesiones?
+4. Rating: ¿Recomendarías este taller a otros miembros?
+5. Text: Comentarios adicionales (opcional)
+```
+
+### Meditation Session
+
+```
+1. Rating: ¿Cómo te sentiste durante la meditación?
+2. Multiple Choice: ¿La duración de la sesión fue adecuada?
+   - Muy corta
+   - Perfecta
+   - Un poco larga
+   - Demasiado larga
+3. Rating: Valoración de la guía del facilitador
+4. Text: ¿Qué te llevaste de esta experiencia?
+```
+
+## Troubleshooting
+
+### Questions Not Appearing in Survey
+
+- Check question `isActive` status is `true`
+- Verify questions are saved (click **Guardar cambios**)
+- Refresh member dashboard
+- Check question order (inactive questions may be hidden)
+
+### Responses Not Recording
+
+- Verify `FeedbackResponse` is being created in database
+- Check `eventId` matches actual meeting ID
+- Ensure member is authenticated when submitting
+- Review browser console for API errors
+
+### Member Can Still Access Events
+
+- Check `ParticipationRecord.feedbackBlocksNext` is `true`
+- Verify blocking logic is implemented in event registration flow
+- Confirm member has pending feedback in system
+- Review member dashboard for "Complete surveys" prompt
+
+### Star Ratings Display Wrong
+
+- Ensure answer `value` is numeric (1-5)
+- Check `overallRating` calculation logic
+- Verify star repeat logic: `'⭐'.repeat(Math.round(value))`
+- Test with decimal ratings (2.7 → 3 stars)
+
+## Related Documentation
+
+- [Zoom Integration](/admin/zoom-integration) - Meetings that trigger feedback
+- [Calendar Management](/admin/calendar-management) - Activity events
+- [Gamification](/admin/gamification) - Reward participation with feedback

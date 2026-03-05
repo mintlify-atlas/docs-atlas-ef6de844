@@ -1,0 +1,517 @@
+---
+title: Custom Pages API
+description: Create and manage dynamic pages with the page builder
+---
+
+## Overview
+
+The Custom Pages API (subset of `db.cms`) enables creation and management of dynamic pages with a flexible section-based architecture. Each page consists of multiple sections that can be reordered and configured.
+
+## Core Methods
+
+These are the primary methods from `db.cms` used for page management:
+
+### getPages
+
+Retrieves all custom pages.
+
+```typescript
+db.cms.getPages(): CustomPage[]
+```
+
+<ResponseField name="return" type="CustomPage[]">
+  Array of all custom pages (published and draft)
+</ResponseField>
+
+```typescript
+const pages = db.cms.getPages();
+const published = pages.filter(p => p.status === 'Published');
+const drafts = pages.filter(p => p.status === 'Draft');
+```
+
+---
+
+### getPageBySlug
+
+Retrieves a single page by its URL slug.
+
+```typescript
+db.cms.getPageBySlug(slug: string): CustomPage | undefined
+```
+
+<ParamField path="slug" type="string" required>
+  URL-friendly slug (e.g., "quienes-somos")
+</ParamField>
+
+<ResponseField name="return" type="CustomPage | undefined">
+  The matching page, or undefined if not found
+</ResponseField>
+
+```typescript
+const page = db.cms.getPageBySlug('quienes-somos');
+if (page) {
+  console.log(page.title);
+}
+```
+
+---
+
+### savePage
+
+Creates or updates a page.
+
+```typescript
+db.cms.savePage(page: CustomPage): CustomPage[]
+```
+
+<ParamField path="page" type="CustomPage" required>
+  Complete page object (creates if new id, updates if existing)
+</ParamField>
+
+---
+
+### deletePage
+
+Deletes a page by ID.
+
+```typescript
+db.cms.deletePage(id: string): CustomPage[]
+```
+
+<ParamField path="id" type="string" required>
+  Page ID to delete
+</ParamField>
+
+## Page Structure
+
+### CustomPage Interface
+
+```typescript
+interface CustomPage {
+  id: string;
+  slug: string;
+  title: string;
+  status: 'Published' | 'Draft';
+  sections: PageSection[];
+  seo: SEOConfig;
+}
+```
+
+## Section Types
+
+Pages are built from reusable section components:
+
+### Hero Section
+
+Large header with image and CTA.
+
+```typescript
+{
+  id: 's_hero',
+  type: 'Hero',
+  order: 0,
+  content: {
+    title: 'Quiénes Somos',
+    subtitle: 'Una comunidad global',
+    imageUrl: 'https://images.unsplash.com/photo-...',
+    ctaText: 'Ver Sedes',
+    ctaLink: '/about/locations'
+  }
+}
+```
+
+### Text Section
+
+Markdown or HTML text content.
+
+```typescript
+{
+  id: 's_text_1',
+  type: 'Text',
+  order: 1,
+  content: {
+    text: '## Un legado de sabiduría\n\nFundada hace más de 80 años...'
+  }
+}
+```
+
+### Stats Section
+
+Key statistics display.
+
+```typescript
+{
+  id: 's_stats',
+  type: 'Stats',
+  order: 2,
+  content: {
+    items: [
+      { label: 'Año de Fundación', value: '1937', icon: 'Calendar' },
+      { label: 'Países', value: '20+', icon: 'Globe' }
+    ]
+  }
+}
+```
+
+### CTA Section
+
+Call-to-action block.
+
+```typescript
+{
+  id: 's_cta',
+  type: 'CTA',
+  order: 3,
+  content: {
+    title: 'Nuestra Misión',
+    text: 'Fomentar el desenvolvimiento espiritual...',
+    buttonText: 'Saber más',
+    buttonLink: '/about'
+  }
+}
+```
+
+### Timeline Section
+
+Chronological timeline display.
+
+```typescript
+{
+  id: 's_timeline',
+  type: 'Timeline',
+  order: 4,
+  content: {}
+}
+```
+
+### Cards Section
+
+Grid of cards.
+
+```typescript
+{
+  id: 's_cards',
+  type: 'Cards',
+  order: 5,
+  content: {
+    items: [
+      { title: 'Card 1', description: 'Desc...', icon: 'Star' }
+    ]
+  }
+}
+```
+
+### Gallery Section
+
+Image gallery.
+
+```typescript
+{
+  id: 's_gallery',
+  type: 'Gallery',
+  order: 6,
+  content: {
+    images: [
+      { url: 'https://...', alt: 'Image 1' }
+    ]
+  }
+}
+```
+
+### ResourcesGrid Section
+
+Grid of downloadable resources.
+
+```typescript
+{
+  id: 's_resources',
+  type: 'ResourcesGrid',
+  order: 7,
+  content: {}
+}
+```
+
+### EventsCalendar Section
+
+Upcoming events calendar.
+
+```typescript
+{
+  id: 's_calendar',
+  type: 'EventsCalendar',
+  order: 8,
+  content: {}
+}
+```
+
+### MethodPillars Section
+
+CAFH method pillars display.
+
+```typescript
+{
+  id: 's_pillars',
+  type: 'MethodPillars',
+  order: 9,
+  content: {}
+}
+```
+
+## Complete Examples
+
+### Creating a New Page
+
+<Tabs>
+  <Tab title="Basic Page">
+    ```typescript
+    const newPage: CustomPage = {
+      id: `p_${Date.now()}`,
+      title: 'Nuestra Historia',
+      slug: 'nuestra-historia',
+      status: 'Draft',
+      sections: [
+        {
+          id: 's_hero',
+          type: 'Hero',
+          order: 0,
+          content: {
+            title: 'Nuestra Historia',
+            subtitle: 'Un recorrido por nuestros hitos',
+            imageUrl: 'https://images.unsplash.com/photo-...'
+          }
+        },
+        {
+          id: 's_text_1',
+          type: 'Text',
+          order: 1,
+          content: {
+            text: '## Nuestros Inicios\n\nEn 1937...'
+          }
+        },
+        {
+          id: 's_timeline',
+          type: 'Timeline',
+          order: 2,
+          content: {}
+        }
+      ],
+      seo: {
+        title: 'Nuestra Historia | Cafh',
+        description: 'Conoce la historia de Cafh',
+        keywords: ['historia', 'cafh', 'fundación']
+      }
+    };
+    
+    db.cms.savePage(newPage);
+    ```
+  </Tab>
+  <Tab title="Landing Page">
+    ```typescript
+    const landingPage: CustomPage = {
+      id: `p_${Date.now()}`,
+      title: 'Únete a Cafh',
+      slug: 'unete',
+      status: 'Published',
+      sections: [
+        {
+          id: 's_hero',
+          type: 'Hero',
+          order: 0,
+          content: {
+            title: 'Únete a Cafh',
+            subtitle: 'Comienza tu camino de crecimiento espiritual',
+            imageUrl: 'https://...',
+            ctaText: 'Registrarse',
+            ctaLink: '/login'
+          }
+        },
+        {
+          id: 's_stats',
+          type: 'Stats',
+          order: 1,
+          content: {
+            items: [
+              { label: 'Miembros activos', value: '5,000+', icon: 'Users' },
+              { label: 'Países', value: '20+', icon: 'Globe' },
+              { label: 'Años de historia', value: '85+', icon: 'Calendar' }
+            ]
+          }
+        },
+        {
+          id: 's_cards',
+          type: 'Cards',
+          order: 2,
+          content: {
+            items: [
+              {
+                title: 'Meditación',
+                description: 'Práctica diaria guiada',
+                icon: 'Heart'
+              },
+              {
+                title: 'Retiros',
+                description: 'Experiencias transformadoras',
+                icon: 'Mountain'
+              },
+              {
+                title: 'Comunidad',
+                description: 'Conexión con otros buscadores',
+                icon: 'Users'
+              }
+            ]
+          }
+        },
+        {
+          id: 's_cta',
+          type: 'CTA',
+          order: 3,
+          content: {
+            title: '¿Listo para comenzar?',
+            text: 'Únete a miles de personas en su camino espiritual',
+            buttonText: 'Crear Cuenta',
+            buttonLink: '/login'
+          }
+        }
+      ],
+      seo: {
+        title: 'Únete a Cafh | Comunidad Espiritual',
+        description: 'Comienza tu camino de crecimiento espiritual con Cafh',
+        keywords: ['cafh', 'únete', 'registro', 'meditación', 'comunidad']
+      }
+    };
+    
+    db.cms.savePage(landingPage);
+    ```
+  </Tab>
+</Tabs>
+
+### Updating a Page
+
+```typescript
+const page = db.cms.getPageBySlug('quienes-somos');
+
+if (page) {
+  // Update hero title
+  const heroSection = page.sections.find(s => s.type === 'Hero');
+  if (heroSection) {
+    heroSection.content.title = 'Nuevo Título';
+  }
+  
+  // Add new section
+  page.sections.push({
+    id: `s_${Date.now()}`,
+    type: 'CTA',
+    order: page.sections.length,
+    content: {
+      title: 'Contáctanos',
+      text: '¿Tienes preguntas?',
+      buttonText: 'Contacto',
+      buttonLink: '/contact'
+    }
+  });
+  
+  // Save
+  db.cms.savePage(page);
+}
+```
+
+### Reordering Sections
+
+```typescript
+const page = db.cms.getPageBySlug('quienes-somos');
+
+if (page) {
+  // Move section from index 2 to index 0
+  const [section] = page.sections.splice(2, 1);
+  page.sections.unshift(section);
+  
+  // Update order numbers
+  page.sections.forEach((section, index) => {
+    section.order = index;
+  });
+  
+  db.cms.savePage(page);
+}
+```
+
+## Page Rendering
+
+### Dynamic Page Component
+
+```typescript
+const DynamicPageView: React.FC<{ slug: string }> = ({ slug }) => {
+  const page = db.cms.getPageBySlug(slug);
+  
+  if (!page || page.status !== 'Published') {
+    return <NotFound />;
+  }
+  
+  const sortedSections = [...page.sections].sort((a, b) => a.order - b.order);
+  
+  return (
+    <div>
+      <Helmet>
+        <title>{page.seo.title}</title>
+        <meta name="description" content={page.seo.description} />
+        <meta name="keywords" content={page.seo.keywords.join(', ')} />
+      </Helmet>
+      
+      {sortedSections.map(section => (
+        <SectionRenderer key={section.id} section={section} />
+      ))}
+    </div>
+  );
+};
+```
+
+### Section Renderer
+
+```typescript
+const SectionRenderer: React.FC<{ section: PageSection }> = ({ section }) => {
+  switch (section.type) {
+    case 'Hero':
+      return <HeroSection {...section.content} />;
+    case 'Text':
+      return <TextSection {...section.content} />;
+    case 'Stats':
+      return <StatsSection {...section.content} />;
+    case 'CTA':
+      return <CTASection {...section.content} />;
+    case 'Timeline':
+      return <TimelineSection />;
+    case 'Cards':
+      return <CardsSection {...section.content} />;
+    case 'Gallery':
+      return <GallerySection {...section.content} />;
+    case 'ResourcesGrid':
+      return <ResourcesGridSection />;
+    case 'EventsCalendar':
+      return <EventsCalendarSection />;
+    case 'MethodPillars':
+      return <MethodPillarsSection />;
+    default:
+      return null;
+  }
+};
+```
+
+## Default Pages
+
+The system includes default pages:
+
+- **quienes-somos** - About page
+- **el-metodo** - Method page
+- **biblioteca-recursos** - Resources library
+- **actividades-retiros** - Activities and retreats
+- **nuestra-historia** - History subpage
+- **mision-y-vision** - Mission and vision
+
+## Storage Key
+
+- **Key:** `cafh_custom_pages_v1`
+- **Location:** `localStorage`
+
+## Related APIs
+
+- [CMS API](/api/cms) - Parent CMS API
+- [Data Types](/api/data-types) - CustomPage and PageSection interfaces

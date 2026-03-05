@@ -1,0 +1,350 @@
+---
+title: 'Pages Editor'
+description: 'Create and edit dynamic pages with the drag-and-drop section builder'
+icon: 'file-pen'
+---
+
+The Pages Editor allows you to create unlimited custom pages using a modular section-based builder. Each page is composed of reusable sections that can be rearranged, edited, and styled independently.
+
+## Creating a New Page
+
+<Steps>
+  <Step title="Access Pages Manager">
+    Navigate to **CMS → Pages** in the admin panel
+  </Step>
+  <Step title="Click New Page">
+    Enter the page title and URL slug (e.g., `quienes-somos`)
+  </Step>
+  <Step title="Add Sections">
+    Choose from 14+ pre-built section types to build your page
+  </Step>
+  <Step title="Configure SEO">
+    Set meta title, description, keywords, and Open Graph image
+  </Step>
+  <Step title="Publish or Save Draft">
+    Save as Draft to preview, or Publish to make live immediately
+  </Step>
+</Steps>
+
+## Page Structure
+
+Pages are defined with this structure (`types.ts:194-201`):
+
+```typescript
+export interface CustomPage {
+  id: string;
+  slug: string;          // URL path (e.g., 'quienes-somos')
+  title: string;
+  status: 'Published' | 'Draft';
+  sections: PageSection[];
+  seo: SEOConfig;
+}
+```
+
+### Page URLs
+
+Pages are accessible at: `/p/{slug}`
+
+Example: A page with slug `el-metodo` is available at `/p/el-metodo`
+
+## Section Types
+
+The page builder supports 14 section types (`types.ts:182-192`):
+
+<CardGroup cols={2}>
+  <Card title="Text" icon="paragraph">
+    Rich text content with Markdown support
+  </Card>
+  <Card title="Image" icon="image">
+    Single image with caption and alt text
+  </Card>
+  <Card title="Gallery" icon="images">
+    Multi-image gallery with lightbox
+  </Card>
+  <Card title="Stats" icon="chart-line">
+    Key metrics with icons and values
+  </Card>
+  <Card title="Cards" icon="square-check">
+    Feature cards in grid layout
+  </Card>
+  <Card title="IconGrid" icon="grid">
+    Icon-based feature grid
+  </Card>
+  <Card title="Hero" icon="star">
+    Large hero section with image/video background
+  </Card>
+  <Card title="Video" icon="video">
+    Embedded video player (YouTube, Vimeo)
+  </Card>
+  <Card title="CTA" icon="bullhorn">
+    Call-to-action banner with button
+  </Card>
+  <Card title="Accordion" icon="list">
+    Collapsible FAQ or content sections
+  </Card>
+  <Card title="ResourcesGrid" icon="books">
+    Grid of downloadable resources
+  </Card>
+  <Card title="EventsCalendar" icon="calendar">
+    Upcoming events calendar view
+  </Card>
+  <Card title="Timeline" icon="timeline">
+    Chronological timeline layout
+  </Card>
+  <Card title="MethodPillars" icon="columns">
+    Special layout for CAFH method pillars
+  </Card>
+</CardGroup>
+
+## Section Configuration
+
+Each section has a flexible configuration object (`types.ts:182-192`):
+
+```typescript
+export interface PageSection {
+  id: string;
+  type: 'Text' | 'Image' | 'Gallery' | /* ... */;
+  content: any; // Flexible per section type
+  order: number;
+  settings?: {
+    backgroundColor?: string;
+    padding?: 'small' | 'medium' | 'large';
+    containerSize?: 'narrow' | 'standard' | 'full';
+  };
+}
+```
+
+### Example: Hero Section
+
+```json
+{
+  "id": "s_hero_about",
+  "type": "Hero",
+  "order": 0,
+  "content": {
+    "title": "Quiénes Somos",
+    "subtitle": "Una comunidad global dedicada al desenvolvimiento espiritual",
+    "imageUrl": "https://example.com/hero.jpg",
+    "ctaText": "Ver Sedes",
+    "ctaLink": "/about/locations"
+  }
+}
+```
+
+### Example: Stats Section
+
+```json
+{
+  "id": "s_stats_about",
+  "type": "Stats",
+  "order": 2,
+  "content": {
+    "items": [
+      {
+        "label": "Año de Fundación",
+        "value": "1937",
+        "icon": "Calendar"
+      },
+      {
+        "label": "Países con presencia",
+        "value": "20+",
+        "icon": "Globe"
+      }
+    ]
+  }
+}
+```
+
+## Text Section with Markdown
+
+The Text section supports full Markdown syntax:
+
+```markdown
+## Heading Level 2
+
+### Heading Level 3
+
+This is a paragraph with **bold text** and *italic text*.
+
+- Bullet point 1
+- Bullet point 2
+- Bullet point 3
+
+1. Numbered item
+2. Numbered item
+
+[Link text](https://example.com)
+
+> Blockquote text
+```
+
+<Note>
+Markdown is rendered using the CommonMark specification with GitHub-flavored extensions.
+</Note>
+
+## Reordering Sections
+
+Sections can be reordered in two ways:
+
+1. **Drag and Drop**: Use the grip handles to drag sections into new positions
+2. **Order Property**: Manually edit the `order` number in section settings
+
+<Warning>
+Changing the order property manually may cause visual inconsistencies until you refresh the editor.
+</Warning>
+
+## Section Settings
+
+Each section supports optional styling settings:
+
+### Background Color
+
+Set a hex color code for the section background:
+
+```json
+"settings": {
+  "backgroundColor": "#f8fafc"
+}
+```
+
+### Padding
+
+Control vertical spacing:
+
+- `small`: 2rem (32px)
+- `medium`: 4rem (64px)
+- `large`: 6rem (96px)
+
+### Container Size
+
+Control content width:
+
+- `narrow`: 800px max-width (for reading)
+- `standard`: 1200px max-width (default)
+- `full`: 100% width (for hero sections)
+
+## Linking to Other Pages
+
+You can link to other content using these URL patterns:
+
+| Link Type | URL Format | Example |
+|-----------|------------|----------|
+| Custom Page | `/p/{slug}` | `/p/quienes-somos` |
+| Blog Post | `/blog/{id}` | `/blog/post_1` |
+| Static Route | `/{path}` | `/about` or `/contact` |
+| Event | `/activities/{id}` | `/activities/ev_123` |
+| External | `https://...` | `https://cafh.org` |
+
+## SEO Best Practices
+
+<AccordionGroup>
+  <Accordion title="Page Title">
+    - Keep under 60 characters
+    - Include primary keyword
+    - Make unique and descriptive
+    - Format: `Page Name | Site Name`
+  </Accordion>
+
+  <Accordion title="Meta Description">
+    - Write 150-160 characters
+    - Include call-to-action
+    - Use active voice
+    - Don't duplicate the title
+  </Accordion>
+
+  <Accordion title="Keywords">
+    - Choose 5-10 relevant keywords
+    - Include variations and synonyms
+    - Research using Google Search Console
+    - Match user intent
+  </Accordion>
+
+  <Accordion title="Open Graph Image">
+    - Use 1200x630px (Facebook/LinkedIn standard)
+    - Include text overlay if relevant
+    - Keep file size under 1MB
+    - Use high-contrast colors
+  </Accordion>
+</AccordionGroup>
+
+## Saving and Publishing
+
+Page operations are tracked in change logs (`storage.ts:533-552`):
+
+<Steps>
+  <Step title="Save Draft">
+    Status remains `Draft`, page not visible to public
+  </Step>
+  <Step title="Preview">
+    Test the page in preview mode with admin access
+  </Step>
+  <Step title="Publish">
+    Change status to `Published`, page goes live at `/p/{slug}`
+  </Step>
+  <Step title="Edit Published Page">
+    Changes save immediately, use Draft for major rewrites
+  </Step>
+</Steps>
+
+<Warning>
+Publishing a page makes it immediately visible to all users. Test thoroughly in Draft mode first.
+</Warning>
+
+## Default Pages
+
+The platform ships with 6 default pages (`storage.ts:123-283`):
+
+1. **Quiénes Somos** (`/p/quienes-somos`): Organization overview
+2. **El Método** (`/p/el-metodo`): Spiritual method explanation
+3. **Biblioteca de Recursos** (`/p/biblioteca-recursos`): Resource library
+4. **Actividades y Retiros** (`/p/actividades-retiros`): Events calendar
+5. **Nuestra Historia** (`/p/nuestra-historia`): Organization history
+6. **Misión y Visión** (`/p/mision-y-vision`): Mission statement
+
+<Tip>
+Use these default pages as templates. Duplicate and modify sections to match your needs.
+</Tip>
+
+## Deleting Pages
+
+<Steps>
+  <Step title="Select Page">
+    From the Pages list, click the delete icon
+  </Step>
+  <Step title="Confirm Deletion">
+    A confirmation dialog appears with the page title
+  </Step>
+  <Step title="Permanent Removal">
+    The page is removed from storage and change logs record the deletion
+  </Step>
+</Steps>
+
+<Warning>
+Page deletion is permanent and cannot be undone. The change log records the deletion but does not store the full page content.
+</Warning>
+
+## Storage and Performance
+
+Pages are stored in `localStorage` under key `cafh_pages_v1` (`storage.ts:525-552`):
+
+- Maximum storage: ~10MB total (browser dependent)
+- Each page with many sections: ~10-50KB
+- Recommended: 50-100 pages maximum
+
+<Note>
+For sites with hundreds of pages, consider migrating to a database backend.
+</Note>
+
+## Related Documentation
+
+<CardGroup cols={3}>
+  <Card title="CMS Overview" icon="layout" href="/admin/cms-overview">
+    Complete CMS system documentation
+  </Card>
+  <Card title="Blog Management" icon="rss" href="/admin/blog-management">
+    Manage blog posts and articles
+  </Card>
+  <Card title="Media Library" icon="photo-film" href="/admin/media-library">
+    Upload and organize media files
+  </Card>
+</CardGroup>

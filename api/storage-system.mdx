@@ -1,0 +1,256 @@
+---
+title: Storage System
+description: Understanding the CAFH Platform localStorage-based storage architecture
+---
+
+## Overview
+
+The CAFH Platform uses a localStorage-based storage system that simulates a 200MB persistent database. All data is stored in the browser's localStorage with versioned keys for easy data migration.
+
+## Initialization
+
+### db.init
+
+Initializes all storage keys with default data. This method is called automatically when the app mounts.
+
+```typescript
+db.init(): void
+```
+
+**Usage:**
+
+```typescript
+import { db } from './storage';
+
+const App: React.FC = () => {
+  useEffect(() => {
+    db.init();
+  }, []);
+  
+  return <div>...</div>;
+};
+```
+
+## Storage Keys
+
+All data is stored using versioned keys for maintainability:
+
+### Core Data
+- `cafh_user_session_v1` - Current user session
+- `cafh_user_prefs_v1` - User preferences (theme, notifications)
+- `cafh_user_history_v1` - User activity history
+
+### Content Management
+- `cafh_blog_v1` - Blog posts
+- `cafh_blog_config_v1` - Blog section configuration
+- `cafh_events_v1` - Calendar events and meetings
+- `cafh_content_v1` - General content items
+- `cafh_custom_pages_v1` - CMS custom pages
+- `cafh_home_config_v1` - Home page configuration
+- `cafh_hero_config_v1` - Hero section configuration
+- `cafh_menu_v1` - Mega menu structure
+
+### Media & Assets
+- `cafh_media_v1` - Media library assets
+
+### CRM & Communications
+- `cafh_contacts_v1` - Contact database
+- `cafh_crm_lists_v1` - Contact lists
+- `cafh_email_logs_v1` - Email delivery logs
+- `cafh_email_metrics_v1` - Email campaign metrics
+- `cafh_campaigns_v1` - Email campaigns
+- `cafh_automations_v1` - Automation rules
+- `cafh_automation_executions_v1` - Automation execution logs
+- `cafh_smtp_config_v1` - SMTP configuration
+
+### Analytics
+- `cafh_content_interactions_v1` - Content consumption tracking
+- `cafh_changelog_v1` - CMS change log
+
+### Module 1: Virtual Meeting Room
+- `cafh_feedback_q_v1` - Feedback questions
+- `cafh_feedback_r_v1` - Feedback responses
+- `cafh_badges_v1` - Member badges (gamification)
+- `cafh_participation_v1` - Participation records
+- `cafh_zoom_widget_v1` - Zoom widget configuration
+
+### Module 2: Activity Calendar
+- `cafh_activity_events_v1` - Activity events
+- `cafh_activity_cats_v1` - Activity categories
+
+## Helper Functions
+
+### initStorage
+
+Internal helper function that initializes a storage key with default data if it doesn't exist.
+
+```typescript
+const initStorage = <T>(key: string, initialData: T): T
+```
+
+**Example:**
+
+```typescript
+const blogPosts = initStorage(KEYS.BLOG, MOCK_BLOG_POSTS);
+```
+
+## Storage Patterns
+
+### Reading Data
+
+All data retrieval methods follow a consistent pattern:
+
+```typescript
+getAll: (): T[] => JSON.parse(localStorage.getItem(KEY) || '[]')
+```
+
+### Writing Data
+
+All data persistence follows this pattern:
+
+```typescript
+save: (item: T) => {
+  const all = getAll();
+  const updated = [...all, item];
+  localStorage.setItem(KEY, JSON.stringify(updated));
+  return updated;
+}
+```
+
+### Error Handling
+
+All storage operations include try-catch blocks:
+
+```typescript
+try {
+  const stored = localStorage.getItem(key);
+  return stored ? JSON.parse(stored) : defaultValue;
+} catch (e) {
+  console.error(`Error accessing storage for ${key}`, e);
+  return defaultValue;
+}
+```
+
+## Data Limits
+
+### Array Size Limits
+
+Certain collections have size limits to prevent localStorage overflow:
+
+- **Content Interactions:** Max 5,000 items
+- **Change Logs:** Max 100 items
+- **Automation Executions:** Max 500 items
+- **CRM Contacts:** Warning at 5,000 items
+
+```typescript
+const updated = [newInteraction, ...history].slice(0, 5000);
+localStorage.setItem(KEYS.CONTENT_INTERACTIONS, JSON.stringify(updated));
+```
+
+## Storage Size
+
+The system is designed to simulate **200MB of persistent storage**:
+
+```typescript
+console.log("Cafh Local Memory System: Initialized (Simulated 200MB Persistence)");
+```
+
+## Best Practices
+
+### 1. Always Check for Null
+
+```typescript
+const user = db.auth.getCurrentUser();
+if (user) {
+  // Safe to use user
+}
+```
+
+### 2. Use Versioned Keys
+
+All keys include version suffixes (`_v1`) for future migration support.
+
+### 3. Parse Safely
+
+```typescript
+try {
+  const data = JSON.parse(localStorage.getItem(key) || '[]');
+  return Array.isArray(data) ? data : [];
+} catch {
+  return [];
+}
+```
+
+### 4. Validate Data Structure
+
+```typescript
+const parsed = JSON.parse(stored) || {};
+return {
+  ...DEFAULT_CONFIG,
+  ...parsed,
+  items: Array.isArray(parsed.items) ? parsed.items : DEFAULT_CONFIG.items
+};
+```
+
+## Migration Strategy
+
+When data structures change, increment version numbers:
+
+```typescript
+// Old
+const KEYS = {
+  BLOG: 'cafh_blog_v1'
+};
+
+// New (after schema change)
+const KEYS = {
+  BLOG: 'cafh_blog_v2'
+};
+```
+
+Implement migration logic in `db.init()`:
+
+```typescript
+if (localStorage.getItem('cafh_blog_v1') && !localStorage.getItem('cafh_blog_v2')) {
+  // Migrate v1 to v2
+}
+```
+
+## Performance Considerations
+
+### Batch Operations
+
+When updating multiple items, batch the operations:
+
+```typescript
+// Good
+const items = db.content.getAll();
+items.forEach(item => item.viewed = true);
+db.content.saveAll(items);
+
+// Bad - multiple writes
+items.forEach(item => {
+  item.viewed = true;
+  db.content.save(item);
+});
+```
+
+### Lazy Loading
+
+Only load data when needed:
+
+```typescript
+// Load on demand
+const [contacts, setContacts] = useState<Contact[]>([]);
+
+useEffect(() => {
+  setContacts(db.crm.getAll());
+}, []);
+```
+
+## Related APIs
+
+- [Authentication API](/api/authentication)
+- [CMS API](/api/cms)
+- [Media API](/api/media)
+- [Data Types](/api/data-types)

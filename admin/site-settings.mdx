@@ -1,0 +1,488 @@
+---
+title: Site Settings
+description: Configure site-wide settings including branding, colors, timezone, social links, SEO, and notifications
+icon: settings
+---
+
+The Site Settings module provides centralized configuration for all platform-wide settings.
+
+## Settings Overview
+
+Settings are organized into six main categories:
+
+<CardGroup cols={3}>
+  <Card title="General" icon="settings">
+    Site name, branding, colors, timezone
+  </Card>
+  <Card title="Social & SEO" icon="globe">
+    Social links, meta tags, analytics
+  </Card>
+  <Card title="SMTP" icon="envelope">
+    Email server configuration
+  </Card>
+  <Card title="Admins" icon="users">
+    System administrator management
+  </Card>
+  <Card title="Notifications" icon="bell">
+    Email notification preferences
+  </Card>
+  <Card title="Data & Export" icon="database">
+    Data management and exports
+  </Card>
+</CardGroup>
+
+## SiteSettings Schema
+
+All settings stored in a single configuration object:
+
+```typescript
+interface SiteSettings {
+  // Basic Information
+  siteName: string;
+  siteDescription: string;
+  siteUrl: string;
+  logoUrl: string;
+  faviconUrl: string;
+  
+  // Branding
+  primaryColor: string;      // Hex color (e.g., '#1e2f6b')
+  accentColor: string;       // Hex color (e.g., '#00d4d4')
+  
+  // Localization
+  timezone: string;          // IANA timezone (e.g., 'America/Santiago')
+  language: string;          // ISO code (e.g., 'es')
+  
+  // Maintenance
+  maintenanceMode: boolean;  // Site-wide maintenance flag
+  
+  // Social Media
+  socialLinks: {
+    instagram?: string;
+    facebook?: string;
+    youtube?: string;
+    whatsapp?: string;
+    twitter?: string;
+  };
+  
+  // SEO
+  seoTitle: string;
+  seoDescription: string;
+  ogImageUrl?: string;       // Open Graph image
+  gaId?: string;             // Google Analytics ID
+  gtmId?: string;            // Google Tag Manager ID
+  metaPixelId?: string;      // Meta (Facebook) Pixel ID
+  
+  // Notifications
+  notificationEmail: string;
+  notifyOnSubscribe: boolean;
+  notifyOnBounce: boolean;
+  notifyOnAutomationFail: boolean;
+  weeklyDigest: boolean;
+}
+```
+
+## General Settings
+
+### Site Information
+
+<ParamField path="siteName" type="string" required>
+  Display name of the site (e.g., "Cafh Chile")
+</ParamField>
+
+<ParamField path="siteDescription" type="string" required>
+  Short description for meta tags and browser tabs
+</ParamField>
+
+<ParamField path="siteUrl" type="string" required>
+  Canonical URL including protocol (e.g., "https://cafh.cl")
+</ParamField>
+
+<ParamField path="logoUrl" type="string">
+  URL or path to site logo image
+</ParamField>
+
+<ParamField path="faviconUrl" type="string">
+  URL or path to favicon (recommended: 32x32px PNG or ICO)
+</ParamField>
+
+### Branding Colors
+
+<ParamField path="primaryColor" type="string" default="#1e2f6b">
+  Main brand color in hex format. Used for:
+  - Header and navigation
+  - Primary buttons
+  - Links and accents
+</ParamField>
+
+<ParamField path="accentColor" type="string" default="#00d4d4">
+  Secondary accent color. Used for:
+  - Hover states
+  - Highlights
+  - CTAs
+</ParamField>
+
+**Color picker UI:**
+```tsx
+<input 
+  type="color" 
+  value={settings.primaryColor} 
+  onChange={e => set('primaryColor', e.target.value)}
+  className="w-12 h-10 rounded-xl border cursor-pointer"
+/>
+```
+
+### Localization
+
+<ParamField path="timezone" type="string" default="America/Santiago">
+  IANA timezone identifier for event scheduling and timestamps
+  
+  **Available options:**
+  - America/Santiago (UTC-3/4)
+  - America/Buenos_Aires (UTC-3)
+  - America/Mexico_City (UTC-6)
+  - Europe/Madrid (UTC+1/2)
+</ParamField>
+
+<ParamField path="language" type="string" default="es">
+  ISO 639-1 language code for interface and content
+</ParamField>
+
+### Maintenance Mode
+
+<ParamField path="maintenanceMode" type="boolean" default={false}>
+  When enabled, shows maintenance page to all non-admin users
+</ParamField>
+
+**Toggle UI:**
+```tsx
+<button 
+  onClick={() => set('maintenanceMode', !settings.maintenanceMode)}
+  className={`px-4 py-3 rounded-xl font-bold border-2 ${
+    settings.maintenanceMode 
+      ? 'border-red-300 bg-red-50 text-red-600' 
+      : 'border-slate-200 bg-slate-50 text-slate-500'
+  }`}
+>
+  {settings.maintenanceMode ? '🔴 Activado' : '🟢 Desactivado'}
+</button>
+```
+
+<Warning>
+  Maintenance mode prevents all non-admin users from accessing the site. Admins can still log in and make changes.
+</Warning>
+
+## Social Media & SEO
+
+### Social Links
+
+Configure social media profile URLs:
+
+```typescript
+socialLinks: {
+  instagram?: string;   // Full URL: https://instagram.com/cafhchile
+  facebook?: string;    // Full URL: https://facebook.com/cafhchile
+  youtube?: string;     // Full URL: https://youtube.com/@cafh
+  whatsapp?: string;    // Phone with country code: +56912345678
+  twitter?: string;     // Full URL: https://twitter.com/cafh
+}
+```
+
+These populate:
+- Footer social icons
+- Contact page links
+- Open Graph metadata
+
+### SEO Configuration
+
+<ParamField path="seoTitle" type="string" required>
+  Global SEO title template (appears in Google results)
+</ParamField>
+
+<ParamField path="seoDescription" type="string" required>
+  Meta description (150 chars max, appears in Google results)
+</ParamField>
+
+<ParamField path="ogImageUrl" type="string">
+  Default Open Graph image (1200x630px recommended)
+  
+  Used when sharing on social media if page doesn't have specific OG image
+</ParamField>
+
+### Analytics Integration
+
+<ParamField path="gaId" type="string">
+  Google Analytics 4 Measurement ID (format: `G-XXXXXXXXXX`)
+</ParamField>
+
+<ParamField path="gtmId" type="string">
+  Google Tag Manager Container ID (format: `GTM-XXXXXXX`)
+</ParamField>
+
+<ParamField path="metaPixelId" type="string">
+  Meta (Facebook) Pixel ID for conversion tracking
+</ParamField>
+
+**Implementation example:**
+```html
+<!-- Google Analytics -->
+{settings.gaId && (
+  <script async src={`https://www.googletagmanager.com/gtag/js?id=${settings.gaId}`}></script>
+)}
+```
+
+## SMTP Configuration
+
+Email sending configuration for cPanel SMTP:
+
+```typescript
+interface SMTPConfig {
+  host: string;        // SMTP server (e.g., 'mail.cafh.cl')
+  port: string;        // Port (587 for TLS, 465 for SSL)
+  secure: boolean;     // Use TLS/SSL
+  user: string;        // SMTP username (usually full email)
+  pass: string;        // SMTP password
+  fromEmail: string;   // Default sender email
+  fromName: string;    // Default sender name
+}
+```
+
+### SMTP Settings
+
+<Steps>
+  <Step title="Host Configuration">
+    Enter your cPanel SMTP server hostname:
+    - Usually `mail.yourdomain.com`
+    - Check cPanel Email Accounts section
+  </Step>
+  
+  <Step title="Port Selection">
+    Choose appropriate port:
+    - **587**: STARTTLS (recommended)
+    - **465**: SSL/TLS
+    - **25**: Plain (not recommended)
+  </Step>
+  
+  <Step title="Authentication">
+    Enter email account credentials:
+    - User: Full email address (e.g., `noreply@cafh.cl`)
+    - Pass: Email account password
+  </Step>
+  
+  <Step title="Sender Information">
+    Configure default sender:
+    - From Email: `noreply@cafh.cl`
+    - From Name: `Cafh Chile`
+  </Step>
+</Steps>
+
+**Storage location:**
+```typescript
+localStorage.setItem('cafh_smtp_config_v1', JSON.stringify(smtpConfig));
+```
+
+<Note>
+  SMTP credentials are stored locally in the browser. In production, store on server-side only and never expose to frontend.
+</Note>
+
+## Administrator Management
+
+Manage system administrators:
+
+```typescript
+interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;        // SUPER_ADMIN | ADMIN | EDITOR
+  isActive: boolean;
+  lastLogin?: string;
+  createdAt: string;
+}
+```
+
+### User Roles
+
+<CardGroup cols={3}>
+  <Card title="Super Admin" icon="shield">
+    Full system access including settings and user management
+  </Card>
+  <Card title="Admin" icon="user-shield">
+    Content management, CRM, and campaigns (no system settings)
+  </Card>
+  <Card title="Editor" icon="pen">
+    Content creation and editing only
+  </Card>
+</CardGroup>
+
+**Current admin list (prototype):**
+```typescript
+[
+  { 
+    name: 'Administrador Principal', 
+    email: 'admin@cafh.cl', 
+    role: 'Super Admin', 
+    active: true, 
+    last: 'Hoy' 
+  },
+  { 
+    name: 'Editor Contenidos', 
+    email: 'editor@cafh.cl', 
+    role: 'Editor', 
+    active: true, 
+    last: 'Aye' 
+  },
+]
+```
+
+## Notification Settings
+
+Configure system notification preferences:
+
+<ParamField path="notificationEmail" type="string" required>
+  Email address to receive system notifications
+</ParamField>
+
+### Notification Types
+
+<ParamField path="notifyOnSubscribe" type="boolean" default={true}>
+  📨 Send notification when someone subscribes via footer or form
+</ParamField>
+
+<ParamField path="notifyOnBounce" type="boolean" default={true}>
+  ⚠️ Alert when email bounces (invalid address or delivery failure)
+</ParamField>
+
+<ParamField path="notifyOnAutomationFail" type="boolean" default={true}>
+  🔴 Notify when automation workflow encounters error
+</ParamField>
+
+<ParamField path="weeklyDigest" type="boolean" default={false}>
+  📊 Send weekly summary email with key metrics and activity
+</ParamField>
+
+**Toggle implementation:**
+```tsx
+<button 
+  onClick={() => set('notifyOnSubscribe', !settings.notifyOnSubscribe)}
+  className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold ${
+    settings.notifyOnSubscribe 
+      ? 'bg-cafh-indigo text-white' 
+      : 'bg-slate-100 text-slate-500'
+  }`}
+>
+  <Bell size={16} />
+  {settings.notifyOnSubscribe ? 'Activado' : 'Desactivado'}
+</button>
+```
+
+## Data Management
+
+### Storage Keys
+
+All settings persist to localStorage:
+
+```typescript
+const LS_SETTINGS = 'cafh_site_settings_v1';
+const LS_SMTP = 'cafh_smtp_config_v1';
+```
+
+### Saving Settings
+
+```typescript
+const save = () => {
+  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  localStorage.setItem(LS_SMTP, JSON.stringify(smtp));
+  flash(); // Show success message
+};
+```
+
+### Default Values
+
+If no settings found, these defaults are used:
+
+```typescript
+const DEFAULT_SETTINGS: SiteSettings = {
+  siteName: 'Cafh Chile',
+  siteDescription: 'Escuela de espiritualidad y desarrollo interior.',
+  siteUrl: 'https://cafh.cl',
+  logoUrl: '',
+  faviconUrl: '',
+  primaryColor: '#1e2f6b',
+  accentColor: '#00d4d4',
+  timezone: 'America/Santiago',
+  language: 'es',
+  maintenanceMode: false,
+  socialLinks: {},
+  seoTitle: 'Cafh Chile',
+  seoDescription: 'Escuela de espiritualidad y desenvolvimiento interior.',
+  notificationEmail: 'admin@cafh.cl',
+  notifyOnSubscribe: true,
+  notifyOnBounce: true,
+  notifyOnAutomationFail: true,
+  weeklyDigest: false,
+};
+```
+
+## Settings UI Components
+
+### Tab Navigation
+
+```tsx
+type STab = 'general' | 'social' | 'smtp' | 'admins' | 'notifications' | 'data';
+
+const tabs: [STab, string, React.ElementType][] = [
+  ['general', 'General', Settings],
+  ['social', 'Social & SEO', Globe2],
+  ['smtp', 'Email SMTP', Sliders],
+  ['admins', 'Administradores', Users],
+  ['notifications', 'Notificaciones', Bell],
+  ['data', 'Datos & Export', Database],
+];
+```
+
+### Save Confirmation
+
+Visual feedback when settings saved:
+
+```tsx
+{saved && (
+  <span className="flex items-center gap-2 text-emerald-600 font-bold text-sm bg-emerald-50 px-4 py-2 rounded-xl">
+    <CheckCircle2 size={16} /> Guardado
+  </span>
+)}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep Social Links Updated">
+    Regularly verify social media URLs are active. Broken links hurt credibility.
+  </Accordion>
+  
+  <Accordion title="Monitor SMTP Limits">
+    Most cPanel hosts limit 80-100 emails/hour. Configure rate limiting to avoid blacklisting.
+  </Accordion>
+  
+  <Accordion title="Test Maintenance Mode">
+    Before enabling site-wide maintenance, test with non-admin account to verify messaging.
+  </Accordion>
+  
+  <Accordion title="SEO Description Length">
+    Keep meta descriptions under 150 characters for optimal Google display.
+  </Accordion>
+  
+  <Accordion title="Color Accessibility">
+    Ensure primary and accent colors meet WCAG contrast requirements (4.5:1 minimum).
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Journey Profiles" icon="compass" href="/admin/journey-profiles">
+    Configure user profiles and wizard settings
+  </Card>
+  <Card title="Change Log" icon="history" href="/admin/change-log">
+    View audit trail of all setting changes
+  </Card>
+</CardGroup>

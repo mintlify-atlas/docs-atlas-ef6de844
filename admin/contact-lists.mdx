@@ -1,0 +1,417 @@
+---
+title: 'Contact Lists & Segmentation'
+description: 'Organize contacts into lists and segments for targeted campaigns'
+icon: 'list'
+---
+
+Contact Lists allow you to organize your contacts into segments for targeted email campaigns, reporting, and automation workflows.
+
+## List Structure
+
+Lists are lightweight organizational containers (`types.ts:260-266`):
+
+```typescript
+export interface ContactList {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  contactCount?: number;
+}
+```
+
+## Accessing List Management
+
+<Steps>
+  <Step title="Open CRM">
+    Navigate to **Admin → Gestión de Contactos**
+  </Step>
+  <Step title="Click Listas / Segmentos">
+    Button in the top toolbar opens the lists panel
+  </Step>
+  <Step title="View All Lists">
+    See all existing lists with contact counts
+  </Step>
+  <Step title="Create or Edit">
+    Add new lists or modify existing ones
+  </Step>
+</Steps>
+
+## Creating a List
+
+<Steps>
+  <Step title="Click New List">
+    Press "+ Nueva Lista" in the lists panel
+  </Step>
+  <Step title="Enter Name">
+    Choose a descriptive name (e.g., "Newsletter Subscribers")
+  </Step>
+  <Step title="Add Description">
+    Describe the list's purpose and target audience
+  </Step>
+  <Step title="Save">
+    The list is created and available immediately
+  </Step>
+</Steps>
+
+### List Naming Conventions
+
+✅ **Good Names**:
+- "Newsletter - Bienestar y Meditación"
+- "Retiro Santiago 2024"
+- "Miembros Activos"
+- "Leads - Website Footer"
+
+❌ **Poor Names**:
+- "Lista 1"
+- "Test"
+- "Contactos"
+
+## Common List Types
+
+<CardGroup cols={2}>
+  <Card title="Newsletter Subscribers" icon="envelope">
+    All contacts who signed up for email updates
+  </Card>
+  <Card title="Event Attendees" icon="calendar">
+    Participants in specific events or retreats
+  </Card>
+  <Card title="Active Members" icon="user-check">
+    Current community members with high engagement
+  </Card>
+  <Card title="Leads" icon="user-plus">
+    New contacts not yet fully onboarded
+  </Card>
+  <Card title="Inactive" icon="user-clock">
+    Contacts with low engagement scores
+  </Card>
+  <Card title="VIP" icon="star">
+    High-value contacts (donors, coordinators)
+  </Card>
+</CardGroup>
+
+## Adding Contacts to Lists
+
+### Individual Assignment
+
+<Steps>
+  <Step title="Open Contact Panel">
+    Click a contact in the CRM table
+  </Step>
+  <Step title="View Lists Section">
+    Scroll to "Listas & Segmentos" in the panel
+  </Step>
+  <Step title="Add to List">
+    Click "+" button to select lists
+  </Step>
+  <Step title="Save">
+    Contact is immediately added to selected lists
+  </Step>
+</Steps>
+
+### Bulk Assignment
+
+Add multiple contacts at once (`AdminViews.tsx:1050-1064`):
+
+<Steps>
+  <Step title="Select Contacts">
+    Check boxes for contacts to add
+  </Step>
+  <Step title="Click Agregar a Lista">
+    Button appears in bulk action toolbar
+  </Step>
+  <Step title="Choose List">
+    Select destination list from dropdown
+  </Step>
+  <Step title="Confirm">
+    All selected contacts are added to the list
+  </Step>
+</Steps>
+
+```javascript
+// Bulk add to list implementation
+handleBulkAddToList = () => {
+  if (!bulkListId) return;
+  selectedIds.forEach(id => {
+    const contact = contacts.find(x => x.id === id);
+    if (!contact) return;
+    const listIds = Array.from(new Set([...(contact.listIds || []), bulkListId]));
+    db.crm.save({ ...contact, listIds });
+  });
+}
+```
+
+## List Management Functions
+
+Programmatic list operations (`storage.ts:666-709`):
+
+### Create List
+
+```javascript
+const newList = db.crm.addList({
+  name: "Newsletter - Meditación",
+  description: "Suscriptores interesados en contenido de meditación"
+});
+// Returns: ContactList with generated id and createdAt
+```
+
+### Update List
+
+```javascript
+db.crm.updateList({
+  id: "list_abc123",
+  name: "Newsletter - Meditación y Bienestar",
+  description: "Actualizado para incluir bienestar general",
+  createdAt: "2024-01-15",
+  contactCount: 245
+});
+```
+
+### Delete List
+
+```javascript
+db.crm.deleteList("list_abc123");
+// Removes list and removes list ID from all contacts
+```
+
+<Warning>
+Deleting a list removes it from all contacts. This action is permanent and cannot be undone.
+</Warning>
+
+## Filtering by List
+
+Use list filters to view specific segments:
+
+<Steps>
+  <Step title="Open CRM Table">
+    View the main contacts table
+  </Step>
+  <Step title="Select List Filter">
+    Choose a list from the "Todas las listas" dropdown
+  </Step>
+  <Step title="View Filtered Contacts">
+    Table shows only contacts in that list
+  </Step>
+  <Step title="Perform Actions">
+    Bulk actions apply only to filtered contacts
+  </Step>
+</Steps>
+
+### Combined Filters
+
+You can combine list filters with:
+- Status filters (Subscribed, Pending, etc.)
+- Tag filters
+- Search queries
+
+## List-Based Metrics
+
+View email performance by list (`AdminViews.tsx:727-755`):
+
+<Steps>
+  <Step title="Enable Metrics View">
+    Click "Ver Métricas" in the CRM toolbar
+  </Step>
+  <Step title="Select List">
+    Choose a list from the metrics dropdown
+  </Step>
+  <Step title="View Analytics">
+    See open rates, click rates, and engagement for that list
+  </Step>
+</Steps>
+
+### Calculated Metrics
+
+```javascript
+const contactsInList = contacts.filter(c => c.listIds?.includes(listId));
+const logsForList = emailLogs.filter(l => 
+  contactsInList.some(c => c.id === l.contactId)
+);
+
+const openRate = logsForList.length > 0
+  ? Math.round((openedCount / logsForList.length) * 100)
+  : 0;
+```
+
+## Campaign Targeting
+
+Lists are used to target email campaigns (`storage.ts:859-906`):
+
+### Campaign Recipient Options
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| **All** | Every contact in CRM | Rare, system announcements only |
+| **Subscribed** | All subscribed contacts | General newsletters |
+| **List** | Specific contact list | Targeted campaigns |
+| **Tag** | Contacts with specific tag | Interest-based campaigns |
+
+### Example: Campaign to List
+
+```javascript
+const campaign = {
+  name: "Newsletter Julio 2024",
+  subject: "Nuevos recursos de meditación",
+  recipientType: "list",
+  listId: "list_newsletter_meditacion",
+  content: "<html>...</html>",
+  status: "Draft"
+};
+
+db.campaigns.create(campaign);
+```
+
+## Automation Triggers
+
+Lists can trigger automation workflows (`types.ts:383-400`):
+
+### Contact Added to List Trigger
+
+```typescript
+const automation = {
+  name: "Welcome Series",
+  trigger: {
+    type: "contact_added_to_list",
+    listId: "list_new_subscribers"
+  },
+  nodes: [
+    {
+      type: "send_email",
+      subject: "Bienvenido a Cafh",
+      content: "<p>Gracias por unirte...</p>"
+    },
+    {
+      type: "wait",
+      amount: 3,
+      unit: "days"
+    },
+    {
+      type: "send_email",
+      subject: "Recursos para comenzar",
+      content: "<p>Te compartimos...</p>"
+    }
+  ]
+};
+```
+
+<Tip>
+Use list-based automation to create onboarding sequences, nurture campaigns, and re-engagement workflows.
+</Tip>
+
+## List vs. Tags
+
+### When to Use Lists
+
+- **Campaigns**: Targeting specific email campaigns
+- **Automation**: Triggering workflows
+- **Reporting**: Analyzing segment performance
+- **Organization**: Grouping by acquisition source
+
+### When to Use Tags
+
+- **Interests**: User interests ("meditación", "retiros")
+- **Behavior**: Actions taken ("downloaded-guide", "attended-event")
+- **Attributes**: Characteristics ("beginner", "advanced")
+- **Flexible Filtering**: Ad-hoc segmentation
+
+<Note>
+A contact can be in multiple lists and have multiple tags. Use both for powerful segmentation.
+</Note>
+
+## List Contact Count
+
+Track how many contacts are in each list:
+
+```javascript
+const list = db.crm.getLists().find(l => l.id === listId);
+const contactsInList = db.crm.getAll().filter(c => 
+  c.listIds?.includes(listId)
+).length;
+
+// Update count
+list.contactCount = contactsInList;
+db.crm.updateList(list);
+```
+
+<Tip>
+Contact counts update automatically when contacts are added or removed from lists.
+</Tip>
+
+## List Hygiene
+
+Maintain clean, effective lists:
+
+### Monthly Tasks
+
+<AccordionGroup>
+  <Accordion title="Remove Duplicates">
+    - Search for duplicate emails
+    - Merge contact records
+    - Keep most complete record
+  </Accordion>
+
+  <Accordion title="Update Bounced Contacts">
+    - Review contacts with 'Bounced' status
+    - Remove from active lists
+    - Move to 'Inactive' list
+  </Accordion>
+
+  <Accordion title="Archive Old Lists">
+    - Identify completed event lists
+    - Archive or delete if no longer needed
+    - Document for historical reference
+  </Accordion>
+
+  <Accordion title="Verify Engagement">
+    - Check average engagement scores per list
+    - Segment low-engagement contacts
+    - Create re-engagement campaigns
+  </Accordion>
+</AccordionGroup>
+
+## GDPR and Compliance
+
+### Best Practices
+
+- **Consent**: Only add contacts who opted in
+- **Unsubscribe**: Honor unsubscribe requests immediately
+- **Data Retention**: Remove inactive contacts after 2 years
+- **Transparency**: Document list purposes
+
+<Warning>
+Never purchase or import lists without explicit consent. This violates GDPR and anti-spam laws.
+</Warning>
+
+## List Export
+
+Export contacts from a list for external use:
+
+```javascript
+const listId = "list_newsletter";
+const contactsInList = db.crm.getAll().filter(c => 
+  c.listIds?.includes(listId)
+);
+
+// Convert to CSV
+const csv = [
+  "name,email,status,phone",
+  ...contactsInList.map(c => 
+    `${c.name},${c.email},${c.status},${c.phone}`
+  )
+].join("\n");
+
+// Download
+const blob = new Blob([csv], { type: "text/csv" });
+const url = URL.createObjectURL(blob);
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="CRM Overview" icon="users" href="/admin/crm">
+    Complete CRM system documentation
+  </Card>
+  <Card title="User Roles" icon="shield" href="/admin/user-roles">
+    Manage admin permissions
+  </Card>
+</CardGroup>

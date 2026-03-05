@@ -1,0 +1,590 @@
+---
+title: Data Types
+description: TypeScript interfaces and type definitions for the CAFH Platform
+---
+
+## User & Authentication
+
+### UserRole
+
+Enum defining user permission levels.
+
+```typescript
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  EDITOR = 'EDITOR',
+  MEMBER = 'MEMBER',
+  GUEST = 'GUEST'
+}
+```
+
+### User
+
+Represents a platform user with authentication and profile information.
+
+```typescript
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatarUrl: string;
+  tenantId: string;
+  interests: string[];
+  joinedDate: string;
+  coverUrl?: string;
+  phone?: string;
+  city?: string;
+}
+```
+
+### UserActivity
+
+Tracks user interaction history.
+
+```typescript
+export interface UserActivity {
+  id: string;
+  type: 'Event' | 'Reading' | 'Donation' | 'Meditation';
+  title: string;
+  date: string;
+  status: 'Completed' | 'Registered';
+}
+```
+
+## CMS & Content
+
+### ContentItem
+
+Generic content item for articles, pages, events, and resources.
+
+```typescript
+export interface ContentItem {
+  id: string;
+  title: string;
+  type: 'Article' | 'Page' | 'Event' | 'Resource';
+  status: 'Published' | 'Draft';
+  author: string;
+  publishDate: string;
+  views: number;
+  tags: string[];
+  imageUrl?: string;
+  seo?: SEOConfig;
+}
+```
+
+### BlogPost
+
+Blog post with full content and metadata.
+
+```typescript
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  imageUrl: string;
+  date: string;
+  author: string;
+  content?: string;
+  seo?: SEOConfig;
+}
+```
+
+### CustomPage
+
+Dynamic page created with the CMS page builder.
+
+```typescript
+export interface CustomPage {
+  id: string;
+  slug: string;
+  title: string;
+  status: 'Published' | 'Draft';
+  sections: PageSection[];
+  seo: SEOConfig;
+}
+```
+
+### PageSection
+
+A section within a custom page.
+
+```typescript
+export interface PageSection {
+  id: string;
+  type: 'Text' | 'Image' | 'Gallery' | 'Stats' | 'Cards' | 'IconGrid' | 
+        'Hero' | 'Video' | 'CTA' | 'Accordion' | 'ResourcesGrid' | 
+        'EventsCalendar' | 'Timeline' | 'MethodPillars';
+  content: any;
+  order: number;
+  settings?: {
+    backgroundColor?: string;
+    padding?: 'small' | 'medium' | 'large';
+    containerSize?: 'narrow' | 'standard' | 'full';
+  };
+}
+```
+
+### SEOConfig
+
+SEO metadata for pages and content.
+
+```typescript
+export interface SEOConfig {
+  title: string;
+  description: string;
+  keywords: string[];
+  ogImage?: string;
+  schemaType?: string;
+}
+```
+
+### ChangeLog
+
+CMS change tracking for audit trail.
+
+```typescript
+export interface ChangeLog {
+  id: string;
+  userId: string;
+  userName: string;
+  section: string;
+  action: 'Create' | 'Update' | 'Delete' | 'Rollback';
+  timestamp: string;
+  details: string;
+  previousState?: string;
+}
+```
+
+## Home & Configuration
+
+### HomeConfig
+
+Complete home page configuration.
+
+```typescript
+export interface HomeConfig {
+  hero: HeroConfig;
+  searchSubtitle: string;
+  searchItems: SearchItem[];
+  threeColumns: HomeThreeColumn[];
+  blogSection: BlogConfig;
+  activitiesSection: {
+    title: string;
+    subtitle: string;
+    maxEvents: number;
+    order: number;
+  };
+  sectionOrder: string[];
+  footer: FooterConfig;
+}
+```
+
+### HeroConfig
+
+Hero section configuration.
+
+```typescript
+export interface HeroConfig {
+  title: string;
+  highlightWord: string;
+  subtitle: string;
+  backgrounds: HeroMedia[];
+  modalVideoId: string;
+  ctaText: string;
+  ctaLink: string;
+  sliderSpeed: number;
+  showControls: boolean;
+  textAlignment: 'left' | 'center' | 'right';
+}
+```
+
+### FooterConfig
+
+Footer configuration with columns and social links.
+
+```typescript
+export interface FooterConfig {
+  columns: FooterColumn[];
+  socialLinks: { platform: string; url: string; icon: string }[];
+  subscriptionTitle: string;
+  subscriptionSubtitle: string;
+  leadSourceTag: string;
+  copyright: string;
+}
+```
+
+## Navigation
+
+### MegaMenuItem
+
+Mega menu navigation item.
+
+```typescript
+export interface MegaMenuItem {
+  label: string;
+  path: string;
+  description?: string;
+  columns?: MegaMenuColumn[];
+}
+```
+
+### MegaMenuColumn
+
+Column within a mega menu dropdown.
+
+```typescript
+export interface MegaMenuColumn {
+  title: string;
+  items: { label: string; path: string; icon?: string; desc?: string }[];
+}
+```
+
+## CRM & Contacts
+
+### Contact
+
+Contact/lead in the CRM system.
+
+```typescript
+export interface Contact {
+  id: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: 'Subscribed' | 'Unsubscribed' | 'Bounced' | 'Pending' | 'new';
+  lastContact: string;
+  tags: string[];
+  notes?: string;
+  engagementScore?: number;
+  mailrelayId?: string;
+  city?: string;
+  country?: string;
+  createdAt?: string;
+  listIds?: string[];
+}
+```
+
+### ContactList
+
+Segmented contact list.
+
+```typescript
+export interface ContactList {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  contactCount?: number;
+}
+```
+
+## Email & Campaigns
+
+### Campaign
+
+Email campaign definition.
+
+```typescript
+export interface Campaign {
+  id: string;
+  name: string;
+  subject: string;
+  content: string;
+  status: 'Draft' | 'Scheduled' | 'Sent' | 'Testing';
+  recipientType: 'all' | 'subscribed' | 'list';
+  listId?: string;
+  recipientCount: number;
+  createdAt: string;
+  sentAt?: string;
+  scheduledAt?: string;
+  testEmail?: string;
+  metrics: {
+    sent: number;
+    opened: number;
+    clicked: number;
+    bounced: number;
+  };
+}
+```
+
+### EmailLog
+
+Email delivery log entry.
+
+```typescript
+export interface EmailLog {
+  id: string;
+  contactId: string;
+  subject: string;
+  sentAt: string;
+  status: 'Delivered' | 'Opened' | 'Clicked' | 'Bounced' | 'Failed' | 'Queued';
+  openedAt?: string;
+  clickedAt?: string;
+  errorMessage?: string;
+  campaignName?: string;
+}
+```
+
+### SMTPConfig
+
+SMTP server configuration.
+
+```typescript
+export interface SMTPConfig {
+  host: string;
+  port: string;
+  secure: boolean;
+  user: string;
+  pass: string;
+  fromEmail: string;
+  fromName: string;
+}
+```
+
+## Automation
+
+### AutomationRule
+
+Automation workflow definition.
+
+```typescript
+export interface AutomationRule {
+  id: string;
+  name: string;
+  description?: string;
+  status: 'Active' | 'Paused' | 'Draft';
+  trigger: AutomationTrigger;
+  nodes: AutomationNode[];
+  nodePositions?: Record<string, { x: number; y: number }>;
+  createdAt: string;
+  updatedAt: string;
+  stats: {
+    totalExecutions: number;
+    completed: number;
+    emailsSent: number;
+    tagsApplied: number;
+  };
+}
+```
+
+### AutomationNode
+
+Union type for automation workflow nodes.
+
+```typescript
+export type AutomationNode =
+  | SendEmailNode
+  | WaitNode
+  | ConditionNode
+  | UpdateTagNode
+  | MoveToListNode
+  | EndNode;
+```
+
+### SendEmailNode
+
+Sends an email in an automation.
+
+```typescript
+export interface SendEmailNode {
+  id: string;
+  type: 'send_email';
+  subject: string;
+  content: string;
+  fromName?: string;
+}
+```
+
+### ConditionNode
+
+Conditional branching in automation.
+
+```typescript
+export interface ConditionNode {
+  id: string;
+  type: 'condition';
+  check: 'email_opened' | 'email_clicked' | 'has_tag' | 'in_list';
+  value?: string;
+  branchTrue: AutomationNode[];
+  branchFalse: AutomationNode[];
+}
+```
+
+## Media Library
+
+### MediaAsset
+
+Media library asset (image, video, document, audio).
+
+```typescript
+export interface MediaAsset {
+  id: string;
+  name: string;
+  type: 'image' | 'video' | 'document' | 'audio';
+  url: string;
+  size: string;
+  dimensions?: string;
+  uploadedAt: string;
+  tags: string[];
+  folderId?: string;
+}
+```
+
+## Events & Calendar
+
+### CalendarEvent
+
+Calendar event with optional Zoom integration.
+
+```typescript
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  day: string;
+  month: string;
+  time: string;
+  location: string;
+  type: 'Presencial' | 'Online' | 'Híbrido';
+  color: string;
+  meetingUrl?: string;
+  zoomId?: string;
+  zoomPassword?: string;
+  platform?: 'Zoom';
+  agenda?: string[];
+  resources?: EventResource[];
+  seo?: SEOConfig;
+  organizerContactId?: string;
+  mediaRefs?: MeetingMediaRef[];
+  agendaItems?: MeetingAgendaItem[];
+  zoomWidgetConfig?: ZoomWidgetConfig;
+  eventStatus?: 'Programada' | 'En curso' | 'Finalizada';
+  linkedActivityId?: string;
+}
+```
+
+### ActivityEvent
+
+Activity calendar event (Module 2).
+
+```typescript
+export interface ActivityEvent {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  modality: 'Virtual' | 'Presencial' | 'Híbrida';
+  organizerContactId?: string;
+  status: 'Borrador' | 'Publicado' | 'Archivado';
+  imageUrl?: string;
+  seo?: SEOConfig;
+  featuredInDashboard: boolean;
+  linkedMeetingId?: string;
+  zoomUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## Gamification (Module 1)
+
+### MemberBadge
+
+Gamification badge awarded to members.
+
+```typescript
+export interface MemberBadge {
+  id: string;
+  userId: string;
+  type: BadgeType;
+  label: string;
+  reason: string;
+  awardedAt: string;
+  awardedBy: string;
+}
+```
+
+### BadgeType
+
+```typescript
+export type BadgeType = 'estrella' | 'medalla_bronce' | 'medalla_plata' | 'medalla_oro' | 'especial';
+```
+
+### ParticipationRecord
+
+Tracks member participation in activities.
+
+```typescript
+export interface ParticipationRecord {
+  id: string;
+  userId: string;
+  eventId: string;
+  eventTitle: string;
+  participatedAt: string;
+  feedbackSubmitted: boolean;
+  feedbackBlocksNext: boolean;
+}
+```
+
+### FeedbackResponse
+
+Post-session feedback response.
+
+```typescript
+export interface FeedbackResponse {
+  id: string;
+  eventId: string;
+  userId: string;
+  userName: string;
+  submittedAt: string;
+  answers: {
+    questionId: string;
+    questionText: string;
+    value: string | number;
+  }[];
+  overallRating: number;
+}
+```
+
+## Analytics
+
+### ContentInteraction
+
+Tracks content consumption for analytics.
+
+```typescript
+export interface ContentInteraction {
+  id: string;
+  userId?: string;
+  assetId: string;
+  assetName: string;
+  assetType: string;
+  tags: string[];
+  timestamp: string;
+}
+```
+
+### EmailMetrics
+
+Aggregated email metrics.
+
+```typescript
+export interface EmailMetrics {
+  totalSent: number;
+  openRate: number;
+  clickRate: number;
+  bounceRate: number;
+  history: { date: string; sent: number; opened: number; clicked: number }[];
+}
+```

@@ -1,0 +1,536 @@
+---
+title: 'Content Recommendations & Profile Customization'
+description: 'Understand how the platform personalizes your experience and customize your profile'
+icon: 'sparkles'
+---
+
+# Content Recommendations & Profile Customization
+
+The CAFH Platform uses intelligent personalization to deliver content that matches your interests and spiritual journey stage.
+
+## How Personalization Works
+
+The platform builds a personalized experience through multiple data sources:
+
+### Personalization Hierarchy
+
+<Steps>
+  <Step title="Wizard Profile Tags (Priority 1)">
+    If you completed the Journey Wizard, your `derivedTags` are used:
+    ```typescript
+    wizardProfile?.derivedTags // ["Meditación", "Principiante", "Bienestar"]
+    ```
+  </Step>
+  
+  <Step title="User Interests (Priority 2)">
+    If no wizard profile, uses manual interests:
+    ```typescript
+    user?.interests // ["Meditación", "Estudio"]
+    ```
+  </Step>
+  
+  <Step title="Default Fallback (Priority 3)">
+    If neither exists, uses defaults:
+    ```typescript
+    ["Meditación", "Bienestar"]
+    ```
+  </Step>
+</Steps>
+
+### Interest Loading Code
+
+```typescript
+const userInterests = (
+  wizardProfile?.derivedTags?.length ? 
+    wizardProfile.derivedTags :
+  user?.interests?.length ? 
+    user.interests :
+  ['Meditación', 'Bienestar']
+);
+```
+
+## Recommendation Engine
+
+The engine filters content based on tag matching:
+
+### Content Sources
+
+The engine pulls from multiple databases:
+
+```typescript
+// Content items (articles, pages, events)
+const contents = db.content.getAll().map(c => ({
+  id: `c_${c.id}`,
+  originalId: c.id,
+  title: c.title,
+  type: c.type,
+  tags: c.tags,
+  date: c.publishDate,
+  url: c.imageUrl,
+  source: 'content'
+}));
+
+// Media assets (documents, videos, audio)
+const medias = db.media.getAll()
+  .filter(m => ['document', 'video', 'audio'].includes(m.type))
+  .map(m => ({
+    id: `m_${m.id}`,
+    originalId: m.id,
+    title: m.name,
+    type: m.type,
+    tags: m.tags || [],
+    date: m.uploadedAt,
+    url: m.url,
+    source: 'media'
+  }));
+```
+
+### Tag Matching Algorithm
+
+```typescript
+const recommendations = [...contents, ...medias].filter(item =>
+  item.tags.some(tag => userInterests.includes(tag))
+).slice(0, 6);
+```
+
+**How it works:**
+
+1. Combine all content and media items
+2. For each item, check if **any** of its tags match **any** of your interests
+3. Keep only items with at least one matching tag
+4. Take the first 6 results
+
+<Tip>
+The more interests you have, the more diverse your recommendations will be. Complete the wizard to get the most personalized experience!
+</Tip>
+
+## Understanding Tags
+
+Tags are the core of the personalization system:
+
+### Tag Categories
+
+**Journey Stage:**
+- `Principiante` - Beginner content
+- `Intermedio` - Intermediate level
+- `Avanzado` - Advanced teachings
+
+**Interest Areas:**
+- `Meditación` - Meditation practices
+- `Estudio` - Study materials
+- `Bienestar` - Wellness topics
+- `Comunidad` - Community activities
+- `Retiro` - Retreat information
+- `Método` - Method teachings
+- `Espiritualidad` - Spiritual concepts
+
+**Content Format:**
+- `Video` - Video content
+- `Audio` - Audio recordings
+- `Lectura` - Reading materials
+- `Práctica` - Practical exercises
+
+### How Tags Are Assigned
+
+<AccordionGroup>
+  <Accordion title="Content Tags" icon="file">
+    Administrators assign tags when creating content:
+    ```typescript
+    {
+      title: "Introducción a la Meditación",
+      tags: ["Meditación", "Principiante", "Práctica"]
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Media Tags" icon="photo-film">
+    Tags added when uploading media assets:
+    ```typescript
+    {
+      name: "Guía de Meditación.pdf",
+      type: "document",
+      tags: ["Meditación", "Método", "Lectura"]
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Wizard Tags" icon="wand-magic-sparkles">
+    Your profile tags from wizard answers:
+    ```typescript
+    {
+      question: "¿Qué te interesa?",
+      answer: "Meditación y Bienestar",
+      derivedTags: ["Meditación", "Bienestar"]
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Your Personalized Dashboard
+
+The main dashboard section "Tu Biblioteca Personalizada" displays your recommendations:
+
+### Content Card Layout
+
+```html
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  {recommendations.map(item => (
+    <ContentCard
+      icon={getIcon(item.type)}
+      color={getColor(item.type)}
+      title={item.title}
+      type={item.type}
+      onClick={() => handleOpen(item)}
+    />
+  ))}
+</div>
+```
+
+### Type-Based Styling
+
+<CardGroup cols={2}>
+  <Card title="📝 Article" icon="feather">
+    **Color**: Blue (`bg-blue-50 text-blue-600`)
+    
+    Written content and blog posts
+  </Card>
+  <Card title="📥 Resource/Document" icon="file-pdf">
+    **Color**: Green (`bg-green-50 text-green-600`)
+    
+    PDFs and downloadable materials
+  </Card>
+  <Card title="🎵 Audio" icon="music">
+    **Color**: Purple (`bg-purple-50 text-purple-600`)
+    
+    Audio recordings and meditations
+  </Card>
+  <Card title="🎬 Video" icon="video">
+    **Color**: Red (`bg-red-50 text-red-600`)
+    
+    Video content and recordings
+  </Card>
+</CardGroup>
+
+### Empty State
+
+If no recommendations match:
+
+```html
+<p className="text-slate-500 italic">
+  Completa "Comenzar el Viaje" o añade tags a tu perfil 
+  para ver recomendaciones.
+</p>
+```
+
+<Note>
+The empty state appears when:
+- You haven't completed the wizard
+- Your interests don't match any content tags
+- All matching content is set to "Draft" status
+</Note>
+
+## Profile Customization
+
+You can customize your profile in several ways:
+
+### Cover Image
+
+The dashboard header has a customizable background:
+
+<Steps>
+  <Step title="Hover Header">
+    Move your mouse over the dashboard header area.
+  </Step>
+  
+  <Step title="Click Image Icon">
+    The camera icon appears in the top-right corner when hovering.
+  </Step>
+  
+  <Step title="Cycle Backgrounds">
+    Each click rotates through 4 preset landscape images:
+    ```typescript
+    const presets = [
+      "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
+      "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc",
+      "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
+      "https://images.unsplash.com/photo-1534447677768-be436bb09401"
+    ];
+    ```
+  </Step>
+  
+  <Step title="Automatic Save">
+    Your selection is saved immediately to your user profile.
+  </Step>
+</Steps>
+
+### Personal Information
+
+In the **Mi Perfil** tab, edit:
+
+**Full Name:**
+```html
+<input 
+  type="text" 
+  value={profileForm.name}
+  placeholder="Tu nombre completo"
+/>
+```
+
+**Phone Number:**
+```html
+<input 
+  type="tel" 
+  value={profileForm.phone}
+  placeholder="+56 9 1234 5678"
+/>
+```
+
+**City:**
+```html
+<input 
+  type="text" 
+  value={profileForm.city}
+  placeholder="Ej: Santiago, Buenos Aires"
+/>
+```
+
+### Save Profile Changes
+
+```typescript
+const handleSaveProfile = () => {
+  setIsSaving(true);
+  
+  const updated = db.auth.updateCurrentUser({
+    name: profileForm.name,
+    phone: profileForm.phone,
+    city: profileForm.city
+  });
+  
+  setCurrentUser(updated);
+  setIsSaving(false);
+};
+```
+
+<Tip>
+Changes to your name are immediately reflected in the dashboard header greeting: "Hola, [Your First Name]"
+</Tip>
+
+## Activity-Based Learning
+
+The platform learns from your behavior:
+
+### Consumption Tracking
+
+Every content interaction is logged:
+
+```typescript
+db.analytics.trackConsumption({
+  userId: currentUser.id,
+  assetId: item.id,
+  assetName: item.title,
+  assetType: item.type,
+  tags: item.tags,
+  timestamp: new Date().toISOString()
+});
+```
+
+### What's Tracked
+
+<AccordionGroup>
+  <Accordion title="Content Views">
+    - Which articles you read
+    - Videos you watch
+    - Documents you download
+    - Audio you listen to
+  </Accordion>
+  
+  <Accordion title="Event Participation">
+    - Virtual meetings attended
+    - In-person events checked in
+    - Feedback submitted
+  </Accordion>
+  
+  <Accordion title="Engagement Patterns">
+    - Time spent on content
+    - Content completion rates
+    - Preferred content types
+  </Accordion>
+</AccordionGroup>
+
+### Future Enhancements
+
+The tracking system is designed to support:
+
+- **Adaptive Recommendations**: Suggest similar content based on what you've consumed
+- **Engagement Scoring**: Identify your most relevant topics
+- **Personalized Emails**: Send content matching your demonstrated interests
+- **Journey Progression**: Track your spiritual development over time
+
+<Card title="Privacy Note" icon="shield-halved">
+  All tracking is used solely to improve your experience. Data is never shared externally or used for advertising.
+</Card>
+
+## News Feed Personalization
+
+The **Novedades para ti** (News for You) section shows recent blog posts:
+
+### Current Implementation
+
+```typescript
+const recentBlogPosts = db.blog.getAll().slice(0, 2);
+```
+
+Currently shows the 2 most recent posts regardless of tags.
+
+### Future Personalization
+
+Planned enhancement:
+
+```typescript
+const personalizedNews = db.blog.getAll()
+  .filter(post => 
+    post.tags.some(tag => userInterests.includes(tag))
+  )
+  .slice(0, 2);
+```
+
+Will show recent posts **matching your interests**.
+
+## Profile Type Influences
+
+Your wizard profile type affects:
+
+### Content Recommendations
+
+```typescript
+profileType: {
+  id: "pt_seeker",
+  name: "Explorador Espiritual",
+  contentTags: ["Principiante", "Meditación", "Bienestar"]
+}
+```
+
+These tags are included in your `derivedTags` for content filtering.
+
+### Kit Items
+
+```typescript
+profileType: {
+  kitItems: [
+    {
+      title: "Guía de Inicio",
+      type: "PDF",
+      catalogItemId: "cat_guide_01"
+    },
+    {
+      title: "Primera Meditación",
+      type: "Audio",
+      catalogItemId: "cat_audio_01"
+    }
+  ]
+}
+```
+
+Kit items are automatically recommended to you after completing the wizard.
+
+### CRM Integration
+
+```typescript
+profileType: {
+  crmTag: "Explorador",
+  crmListId: "list_seekers"
+}
+```
+
+Your contact record is automatically tagged and added to relevant lists for targeted communications.
+
+<Warning>
+Changing your profile type (by retaking the wizard) will update your tags and may significantly change your content recommendations.
+</Warning>
+
+## Display Preferences
+
+While not yet exposed in the UI, the platform stores display preferences:
+
+```typescript
+interface UserPreferences {
+  theme: 'light' | 'dark';      // UI theme
+  notifications: boolean;        // Enable notifications
+  emailDigest: boolean;         // Weekly email digest
+  language: 'es' | 'en';        // Interface language
+}
+```
+
+Access via:
+```typescript
+const prefs = db.user.getPreferences();
+```
+
+<Card title="Coming Soon" icon="clock">
+  A full preferences editor is planned for future releases, allowing you to control all display and notification settings.
+</Card>
+
+## Recommendations Best Practices
+
+### For Members
+
+<Steps>
+  <Step title="Complete the Journey Wizard">
+    This provides the most accurate interest profile.
+  </Step>
+  
+  <Step title="Interact with Content">
+    View articles, watch videos, and download resources to build your activity history.
+  </Step>
+  
+  <Step title="Keep Profile Updated">
+    Update your information if your interests or journey stage changes.
+  </Step>
+  
+  <Step title="Provide Feedback">
+    Complete event feedback to help improve content curation.
+  </Step>
+</Steps>
+
+### Understanding Recommendations
+
+<Tip>
+**If recommendations seem off:**
+
+1. Check your profile tags (wizard or manual interests)
+2. Verify content in the library has matching tags
+3. Contact an administrator to adjust your profile type
+4. Retake the wizard if your journey stage has changed significantly
+</Tip>
+
+## Data Persistence
+
+Your personalization data is stored in:
+
+### Browser Storage
+
+```typescript
+// Wizard Profile
+localStorage.getItem('cafh_user_wizard_profiles_v1')
+
+// User Session & Preferences
+localStorage.getItem('cafh_user_session_v1')
+localStorage.getItem('cafh_user_prefs_v1')
+
+// Activity History
+localStorage.getItem('cafh_user_history_v1')
+
+// Content Interactions
+localStorage.getItem('cafh_content_interactions_v1')
+```
+
+### Data Sync
+
+In a production environment:
+- Browser storage caches for performance
+- Server database is source of truth
+- Periodic sync ensures consistency
+
+<Warning>
+Clearing browser data will clear cached preferences but won't affect your server-side profile. Simply log in again to restore your personalization.
+</Warning>

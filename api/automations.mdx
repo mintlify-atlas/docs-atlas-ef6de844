@@ -1,0 +1,551 @@
+---
+title: 'Automation Workflows API'
+description: 'Build and execute multi-step automated workflows'
+icon: 'robot'
+---
+
+## Overview
+
+The Automation Engine allows you to create sophisticated multi-step workflows with conditions, delays, email sending, and tag/list management.
+
+---
+
+## Automation Management
+
+### getAll
+
+Retrieve all automation rules.
+
+```typescript
+db.automations.getAll(): AutomationRule[]
+```
+
+<ResponseField name="automations" type="AutomationRule[]">
+  Array of all automation rules
+</ResponseField>
+
+**Example:**
+
+```typescript
+const automations = db.automations.getAll();
+console.log(`Active automations: ${automations.filter(a => a.status === 'Active').length}`);
+```
+
+---
+
+### getById
+
+Get a specific automation by ID.
+
+```typescript
+db.automations.getById(id: string): AutomationRule | null
+```
+
+<ParamField path="id" type="string" required>
+  Automation ID
+</ParamField>
+
+<ResponseField name="automation" type="AutomationRule | null">
+  The automation rule if found
+</ResponseField>
+
+---
+
+### create
+
+Create a new automation workflow.
+
+```typescript
+db.automations.create(
+  data: Omit<AutomationRule, 'id' | 'createdAt' | 'updatedAt' | 'stats'>
+): AutomationRule
+```
+
+<ParamField path="data.name" type="string" required>
+  Automation name
+</ParamField>
+
+<ParamField path="data.description" type="string" optional>
+  Description of what this automation does
+</ParamField>
+
+<ParamField path="data.status" type="string" required>
+  'Active' | 'Paused' | 'Draft'
+</ParamField>
+
+<ParamField path="data.trigger" type="AutomationTrigger" required>
+  Trigger configuration
+</ParamField>
+
+<ParamField path="data.nodes" type="AutomationNode[]" required>
+  Array of workflow nodes
+</ParamField>
+
+<ResponseField name="automation" type="AutomationRule">
+  The created automation with generated ID and stats
+</ResponseField>
+
+**Example:**
+
+```typescript
+const automation = db.automations.create({
+  name: 'Welcome Series',
+  description: 'Onboarding sequence for new subscribers',
+  status: 'Active',
+  trigger: {
+    type: 'contact_added_to_list',
+    listId: 'list_new_subscribers'
+  },
+  nodes: [
+    {
+      id: 'node_1',
+      type: 'send_email',
+      subject: 'Welcome to CAFH!',
+      content: '<p>Welcome email content...</p>'
+    },
+    {
+      id: 'node_2',
+      type: 'wait',
+      amount: 3,
+      unit: 'days'
+    },
+    {
+      id: 'node_3',
+      type: 'send_email',
+      subject: 'Getting Started Guide',
+      content: '<p>Follow-up content...</p>'
+    }
+  ]
+});
+```
+
+---
+
+### save
+
+Update an existing automation.
+
+```typescript
+db.automations.save(rule: AutomationRule): AutomationRule
+```
+
+<ParamField path="rule" type="AutomationRule" required>
+  Complete automation object with updates
+</ParamField>
+
+<ResponseField name="automation" type="AutomationRule">
+  The updated automation with new updatedAt timestamp
+</ResponseField>
+
+---
+
+### delete
+
+Delete an automation.
+
+```typescript
+db.automations.delete(id: string): void
+```
+
+<ParamField path="id" type="string" required>
+  Automation ID to delete
+</ParamField>
+
+---
+
+## Execution
+
+### runForContact
+
+Execute an automation for a single contact.
+
+```typescript
+db.automations.runForContact(
+  automationId: string,
+  contact: Contact
+): Promise<AutomationExecution>
+```
+
+<ParamField path="automationId" type="string" required>
+  ID of the automation to run
+</ParamField>
+
+<ParamField path="contact" type="Contact" required>
+  The contact to run the automation for
+</ParamField>
+
+<ResponseField name="execution" type="AutomationExecution">
+  Execution record with complete log
+</ResponseField>
+
+**Example:**
+
+```typescript
+const contact = db.crm.getById('c_12345');
+if (contact) {
+  const exec = await db.automations.runForContact('aut_123', contact);
+  console.log('Execution status:', exec.status);
+  console.log('Log:', exec.log);
+}
+```
+
+---
+
+### runForSegment
+
+Execute an automation for a segment of contacts.
+
+```typescript
+db.automations.runForSegment(
+  automationId: string,
+  targetType: 'all' | 'subscribed' | 'list' | 'tag',
+  targetValue?: string
+): Promise<{ count: number; executions: AutomationExecution[] }>
+```
+
+<ParamField path="automationId" type="string" required>
+  ID of the automation to run
+</ParamField>
+
+<ParamField path="targetType" type="string" required>
+  Type of segment to target
+</ParamField>
+
+<ParamField path="targetValue" type="string" optional>
+  List ID (if targetType='list') or tag name (if targetType='tag')
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Count of contacts processed and array of executions
+</ResponseField>
+
+**Example:**
+
+```typescript
+// Run for all subscribed contacts
+const result = await db.automations.runForSegment(
+  'aut_welcome',
+  'subscribed'
+);
+console.log(`Processed ${result.count} contacts`);
+
+// Run for specific list
+const listResult = await db.automations.runForSegment(
+  'aut_vip',
+  'list',
+  'list_vip_members'
+);
+```
+
+---
+
+### getExecutions
+
+Retrieve automation execution logs.
+
+```typescript
+db.automations.getExecutions(): AutomationExecution[]
+```
+
+<ResponseField name="executions" type="AutomationExecution[]">
+  Array of all executions (max 500)
+</ResponseField>
+
+---
+
+## Automation Node Types
+
+### Send Email Node
+
+Send an email to the contact.
+
+```typescript
+interface SendEmailNode {
+  id: string;
+  type: 'send_email';
+  subject: string;
+  content: string;
+  fromName?: string;
+}
+```
+
+**Example:**
+
+```typescript
+{
+  id: 'node_1',
+  type: 'send_email',
+  subject: 'Welcome!',
+  content: '<h1>Welcome</h1>',
+  fromName: 'CAFH Team'
+}
+```
+
+---
+
+### Wait Node
+
+Pause execution for a duration.
+
+```typescript
+interface WaitNode {
+  id: string;
+  type: 'wait';
+  amount: number;
+  unit: 'minutes' | 'hours' | 'days';
+}
+```
+
+**Example:**
+
+```typescript
+{
+  id: 'node_2',
+  type: 'wait',
+  amount: 2,
+  unit: 'days'
+}
+```
+
+---
+
+### Condition Node
+
+Branch execution based on contact data or behavior.
+
+```typescript
+interface ConditionNode {
+  id: string;
+  type: 'condition';
+  check: 'email_opened' | 'email_clicked' | 'has_tag' | 'in_list';
+  value?: string;
+  branchTrue: AutomationNode[];
+  branchFalse: AutomationNode[];
+}
+```
+
+**Example:**
+
+```typescript
+{
+  id: 'node_3',
+  type: 'condition',
+  check: 'email_opened',
+  branchTrue: [
+    {
+      id: 'node_4',
+      type: 'update_tag',
+      action: 'add',
+      tag: 'Engaged'
+    }
+  ],
+  branchFalse: [
+    {
+      id: 'node_5',
+      type: 'send_email',
+      subject: 'Are you still interested?',
+      content: '<p>Re-engagement email...</p>'
+    }
+  ]
+}
+```
+
+---
+
+### Update Tag Node
+
+Add or remove tags from the contact.
+
+```typescript
+interface UpdateTagNode {
+  id: string;
+  type: 'update_tag';
+  action: 'add' | 'remove';
+  tag: string;
+}
+```
+
+**Example:**
+
+```typescript
+{
+  id: 'node_6',
+  type: 'update_tag',
+  action: 'add',
+  tag: 'Newsletter Subscriber'
+}
+```
+
+---
+
+### Move to List Node
+
+Add contact to a list.
+
+```typescript
+interface MoveToListNode {
+  id: string;
+  type: 'move_to_list';
+  listId: string;
+}
+```
+
+**Example:**
+
+```typescript
+{
+  id: 'node_7',
+  type: 'move_to_list',
+  listId: 'list_active_members'
+}
+```
+
+---
+
+### End Node
+
+Terminate the workflow.
+
+```typescript
+interface EndNode {
+  id: string;
+  type: 'end';
+}
+```
+
+---
+
+## Trigger Types
+
+```typescript
+interface AutomationTrigger {
+  type: AutomationTriggerType;
+  listId?: string;        // For contact_added_to_list
+  tag?: string;           // For tag_added
+  campaignId?: string;    // For campaign events
+  inactiveDays?: number;  // For no_activity
+  scheduledAt?: string;   // For scheduled_date
+}
+
+type AutomationTriggerType =
+  | 'contact_added_to_list'
+  | 'tag_added'
+  | 'campaign_sent'
+  | 'campaign_opened'
+  | 'campaign_clicked'
+  | 'no_activity'
+  | 'scheduled_date'
+  | 'manual';
+```
+
+---
+
+## Complete Workflow Example
+
+```typescript
+// Create a sophisticated re-engagement workflow
+const reengagement = db.automations.create({
+  name: 'Re-engagement Campaign',
+  description: 'Win back inactive subscribers',
+  status: 'Active',
+  trigger: {
+    type: 'no_activity',
+    inactiveDays: 30
+  },
+  nodes: [
+    {
+      id: 'n1',
+      type: 'send_email',
+      subject: 'We miss you!',
+      content: '<p>Haven\'t heard from you...</p>'
+    },
+    {
+      id: 'n2',
+      type: 'wait',
+      amount: 3,
+      unit: 'days'
+    },
+    {
+      id: 'n3',
+      type: 'condition',
+      check: 'email_opened',
+      branchTrue: [
+        {
+          id: 'n4',
+          type: 'update_tag',
+          action: 'add',
+          tag: 'Re-engaged'
+        },
+        {
+          id: 'n5',
+          type: 'send_email',
+          subject: 'Great to have you back!',
+          content: '<p>Thanks for opening...</p>'
+        }
+      ],
+      branchFalse: [
+        {
+          id: 'n6',
+          type: 'update_tag',
+          action: 'add',
+          tag: 'Inactive'
+        },
+        {
+          id: 'n7',
+          type: 'move_to_list',
+          listId: 'list_inactive'
+        }
+      ]
+    },
+    {
+      id: 'n8',
+      type: 'end'
+    }
+  ]
+});
+
+// Execute for inactive segment
+const result = await db.automations.runForSegment(
+  reengagement.id,
+  'tag',
+  'Inactive'
+);
+
+console.log(`Processed ${result.count} inactive contacts`);
+```
+
+---
+
+## Types Reference
+
+```typescript
+interface AutomationRule {
+  id: string;
+  name: string;
+  description?: string;
+  status: 'Active' | 'Paused' | 'Draft';
+  trigger: AutomationTrigger;
+  nodes: AutomationNode[];
+  nodePositions?: Record<string, { x: number; y: number }>;
+  createdAt: string;
+  updatedAt: string;
+  stats: {
+    totalExecutions: number;
+    completed: number;
+    emailsSent: number;
+    tagsApplied: number;
+  };
+}
+
+interface AutomationExecution {
+  id: string;
+  automationId: string;
+  contactId: string;
+  contactEmail: string;
+  startedAt: string;
+  completedAt?: string;
+  currentStep: number;
+  status: 'running' | 'completed' | 'failed';
+  log: string[];
+}
+```

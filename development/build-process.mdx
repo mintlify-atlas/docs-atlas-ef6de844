@@ -1,0 +1,213 @@
+---
+title: "Build Process"
+description: "Building CAFH Platform for production deployment"
+icon: "hammer"
+---
+
+## Production Build
+
+Build the platform for production using Vite:
+
+```bash
+npm run build
+```
+
+This command:
+1. Type-checks all TypeScript files
+2. Bundles React components with tree-shaking
+3. Minifies JavaScript and CSS
+4. Generates optimized assets with content hashes
+5. Outputs to `dist/` directory
+
+## Build Output
+
+```
+dist/
+├── index.html              # Entry HTML file
+├── assets/
+│   ├── index-[hash].js     # Main JavaScript bundle
+│   ├── index-[hash].css    # Compiled CSS
+│   └── vendor-[hash].js    # Third-party dependencies
+└── favicon.svg             # (if present)
+```
+
+<Info>
+  Content hashes like `[hash]` enable long-term caching. Browsers only download changed files.
+</Info>
+
+## Build Configuration
+
+From `vite.config.ts`:
+
+```typescript vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  
+  build: {
+    outDir: 'dist',
+    sourcemap: false,  // Set true for debugging
+    minify: 'esbuild',
+    target: 'es2022',
+  },
+  
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    }
+  }
+});
+```
+
+## Preview Production Build
+
+Test the build locally:
+
+```bash
+npm run preview
+```
+
+This starts a local server serving the `dist/` folder on port 4173.
+
+## Type Checking
+
+Run type check without building:
+
+```bash
+npm run lint
+```
+
+This runs `tsc --noEmit` to catch TypeScript errors.
+
+## Build Optimizations
+
+### Code Splitting
+
+Vite automatically splits vendor code:
+
+```javascript
+// Vendor bundle (React, Router, etc.)
+vendor-abc123.js  // ~150KB
+
+// App code
+index-def456.js   // ~80KB
+```
+
+### Tree Shaking
+
+Unused code is automatically removed:
+
+```typescript
+// Only imported icons are bundled
+import { Users, Mail } from 'lucide-react';
+// The other 600+ icons are tree-shaken
+```
+
+### Minification
+
+Vite uses esbuild for ultra-fast minification:
+- Variable name mangling
+- Whitespace removal
+- Dead code elimination
+- Constant folding
+
+## Build for Different Environments
+
+<Tabs>
+  <Tab title="Development">
+    ```bash
+    npm run dev
+    ```
+    
+    - Source maps enabled
+    - HMR active
+    - No minification
+  </Tab>
+
+  <Tab title="Production">
+    ```bash
+    npm run build
+    ```
+    
+    - Minified bundles
+    - Optimized assets
+    - No source maps (unless configured)
+  </Tab>
+
+  <Tab title="Preview">
+    ```bash
+    npm run build && npm run preview
+    ```
+    
+    - Test production build locally
+    - Serves from `dist/` folder
+  </Tab>
+</Tabs>
+
+## Analyzing Bundle Size
+
+Use `rollup-plugin-visualizer` to analyze bundle:
+
+```bash
+npm install --save-dev rollup-plugin-visualizer
+```
+
+```typescript vite.config.ts
+import { visualizer } from 'rollup-plugin-visualizer';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    visualizer({ open: true })
+  ],
+});
+```
+
+After build, opens an interactive treemap showing bundle composition.
+
+## Common Build Issues
+
+<Accordion title="TypeScript errors">
+  Fix all type errors before building:
+  ```bash
+  npm run lint
+  ```
+  
+  Common issues:
+  - Missing type definitions
+  - Unused imports
+  - Type mismatches
+</Accordion>
+
+<Accordion title="Missing dependencies">
+  Ensure all dependencies are installed:
+  ```bash
+  rm -rf node_modules package-lock.json
+  npm install
+  npm run build
+  ```
+</Accordion>
+
+<Accordion title="Build fails silently">
+  Check for:
+  - Circular dependencies
+  - Dynamic imports that fail
+  - Missing files referenced in imports
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment" icon="rocket" href="/development/deployment">
+    Deploy your build to production
+  </Card>
+  <Card title="Email Server" icon="envelope" href="/development/email-server">
+    Configure production email
+  </Card>
+  <Card title="Environment Setup" icon="gear" href="/development/environment-setup">
+    Production environment variables
+  </Card>
+</CardGroup>

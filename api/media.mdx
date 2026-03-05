@@ -1,0 +1,356 @@
+---
+title: Media Library API
+description: Media asset management for images, videos, documents, and audio
+---
+
+## Overview
+
+The Media Library API (`db.media`) provides methods for managing media assets including images, videos, documents, and audio files. All media metadata is stored in localStorage.
+
+## Methods
+
+### getAll
+
+Retrieves all media assets from the library.
+
+```typescript
+db.media.getAll(): MediaAsset[]
+```
+
+<ResponseField name="return" type="MediaAsset[]">
+  Array of all media assets in the library
+</ResponseField>
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    const assets = db.media.getAll();
+    console.log(`Total assets: ${assets.length}`);
+    
+    // Filter by type
+    const images = assets.filter(a => a.type === 'image');
+    const videos = assets.filter(a => a.type === 'video');
+    ```
+  </Tab>
+  <Tab title="Usage in Component">
+    ```typescript
+    const MediaGallery: React.FC = () => {
+      const [assets, setAssets] = useState<MediaAsset[]>([]);
+      
+      useEffect(() => {
+        setAssets(db.media.getAll());
+      }, []);
+      
+      return (
+        <div className="grid grid-cols-4 gap-4">
+          {assets.map(asset => (
+            <MediaCard key={asset.id} asset={asset} />
+          ))}
+        </div>
+      );
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### add
+
+Adds a new media asset to the library.
+
+```typescript
+db.media.add(asset: Omit<MediaAsset, 'id' | 'uploadedAt'>): MediaAsset[]
+```
+
+<ParamField path="asset" type="Omit<MediaAsset, 'id' | 'uploadedAt'>" required>
+  Media asset data without id and uploadedAt (auto-generated)
+</ParamField>
+
+<ResponseField name="return" type="MediaAsset[]">
+  Updated array of all media assets
+</ResponseField>
+
+<Tabs>
+  <Tab title="Add Image">
+    ```typescript
+    const newImage = db.media.add({
+      name: 'hero-background.jpg',
+      type: 'image',
+      url: 'https://images.unsplash.com/photo-...',
+      size: '2.4 MB',
+      dimensions: '1920x1080',
+      tags: ['hero', 'background', 'home']
+    });
+    ```
+  </Tab>
+  <Tab title="Add Video">
+    ```typescript
+    db.media.add({
+      name: 'intro-meditacion.mp4',
+      type: 'video',
+      url: 'https://storage.cafh.cl/videos/intro.mp4',
+      size: '45.2 MB',
+      dimensions: '1280x720',
+      tags: ['meditación', 'tutorial', 'video']
+    });
+    ```
+  </Tab>
+  <Tab title="Add Document">
+    ```typescript
+    db.media.add({
+      name: 'guia-meditacion.pdf',
+      type: 'document',
+      url: '/assets/docs/guia-meditacion.pdf',
+      size: '1.2 MB',
+      tags: ['pdf', 'guía', 'meditación']
+    });
+    ```
+  </Tab>
+  <Tab title="Add Audio">
+    ```typescript
+    db.media.add({
+      name: 'meditacion-guiada.mp3',
+      type: 'audio',
+      url: '/assets/audio/meditacion.mp3',
+      size: '8.5 MB',
+      tags: ['audio', 'meditación', 'guiada']
+    });
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### delete
+
+Deletes a media asset by ID.
+
+```typescript
+db.media.delete(id: string): MediaAsset[]
+```
+
+<ParamField path="id" type="string" required>
+  The ID of the media asset to delete
+</ParamField>
+
+<ResponseField name="return" type="MediaAsset[]">
+  Updated array of remaining media assets
+</ResponseField>
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    db.media.delete('media_123');
+    console.log('Asset deleted successfully');
+    ```
+  </Tab>
+  <Tab title="With Confirmation">
+    ```typescript
+    const handleDelete = (assetId: string) => {
+      if (confirm('¿Eliminar este archivo?')) {
+        db.media.delete(assetId);
+        setAssets(db.media.getAll());
+      }
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### search
+
+Searches media assets by query and/or type.
+
+```typescript
+db.media.search(query: string, type?: string): MediaAsset[]
+```
+
+<ParamField path="query" type="string" required>
+  Search term to match against name and tags
+</ParamField>
+
+<ParamField path="type" type="string">
+  Filter by asset type: 'image', 'video', 'document', 'audio', or 'all'
+</ParamField>
+
+<ResponseField name="return" type="MediaAsset[]">
+  Array of matching media assets
+</ResponseField>
+
+<Tabs>
+  <Tab title="Search by Query">
+    ```typescript
+    // Search all assets
+    const results = db.media.search('meditación');
+    console.log(`Found ${results.length} assets`);
+    ```
+  </Tab>
+  <Tab title="Search by Type">
+    ```typescript
+    // Get all images
+    const images = db.media.search('', 'image');
+    
+    // Get all videos
+    const videos = db.media.search('', 'video');
+    
+    // Search videos with specific term
+    const meditationVideos = db.media.search('meditación', 'video');
+    ```
+  </Tab>
+  <Tab title="Search Component">
+    ```typescript
+    const MediaSearch: React.FC = () => {
+      const [query, setQuery] = useState('');
+      const [type, setType] = useState('all');
+      const [results, setResults] = useState<MediaAsset[]>([]);
+      
+      useEffect(() => {
+        setResults(db.media.search(query, type));
+      }, [query, type]);
+      
+      return (
+        <div>
+          <input 
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar..." 
+          />
+          <select value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="all">Todos</option>
+            <option value="image">Imágenes</option>
+            <option value="video">Videos</option>
+            <option value="document">Documentos</option>
+            <option value="audio">Audio</option>
+          </select>
+          <div>
+            {results.map(asset => (
+              <MediaCard key={asset.id} asset={asset} />
+            ))}
+          </div>
+        </div>
+      );
+    };
+    ```
+  </Tab>
+</Tabs>
+
+## Media Asset Properties
+
+### MediaAsset Interface
+
+```typescript
+interface MediaAsset {
+  id: string;              // Auto-generated
+  name: string;            // Filename
+  type: 'image' | 'video' | 'document' | 'audio';
+  url: string;             // Public URL or path
+  size: string;            // Human-readable size
+  dimensions?: string;     // For images/videos (e.g., "1920x1080")
+  uploadedAt: string;      // Auto-generated ISO date
+  tags: string[];          // Searchable tags
+  folderId?: string;       // Optional folder organization
+}
+```
+
+## Asset Types
+
+### Image
+- **Type:** `image`
+- **Formats:** JPG, PNG, GIF, WebP, SVG
+- **Use cases:** Hero backgrounds, blog images, gallery items
+- **Should include:** `dimensions`
+
+### Video
+- **Type:** `video`
+- **Formats:** MP4, WebM, MOV
+- **Use cases:** Hero videos, tutorial content, event recordings
+- **Should include:** `dimensions`
+
+### Document
+- **Type:** `document`
+- **Formats:** PDF, DOC, DOCX, TXT
+- **Use cases:** Downloadable guides, resources, forms
+
+### Audio
+- **Type:** `audio`
+- **Formats:** MP3, WAV, OGG
+- **Use cases:** Guided meditations, podcasts, audio content
+
+## Usage Patterns
+
+### Image Picker Component
+
+```typescript
+const ImagePicker: React.FC<{ onSelect: (url: string) => void }> = ({ onSelect }) => {
+  const images = db.media.search('', 'image');
+  
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {images.map(img => (
+        <img
+          key={img.id}
+          src={img.url}
+          alt={img.name}
+          onClick={() => onSelect(img.url)}
+          className="cursor-pointer hover:opacity-75"
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+### Media Reference in Events
+
+```typescript
+// Store reference to media asset, not duplicate
+const event: CalendarEvent = {
+  // ... other fields
+  mediaRefs: [
+    { mediaAssetId: 'media_123', label: 'Guía de Meditación' },
+    { mediaAssetId: 'media_456', label: 'Agenda del Retiro' }
+  ]
+};
+
+// Resolve references
+const resolveMediaRefs = (refs: MeetingMediaRef[]) => {
+  const allMedia = db.media.getAll();
+  return refs.map(ref => {
+    const asset = allMedia.find(m => m.id === ref.mediaAssetId);
+    return { ...ref, asset };
+  });
+};
+```
+
+### Tag Management
+
+```typescript
+// Get all unique tags
+const getAllTags = () => {
+  const allMedia = db.media.getAll();
+  const tagSet = new Set<string>();
+  allMedia.forEach(asset => {
+    asset.tags.forEach(tag => tagSet.add(tag));
+  });
+  return Array.from(tagSet).sort();
+};
+
+// Get assets by tag
+const getAssetsByTag = (tag: string) => {
+  return db.media.getAll().filter(asset => asset.tags.includes(tag));
+};
+```
+
+## Storage Key
+
+- **Key:** `cafh_media_v1`
+- **Location:** `localStorage`
+- **Format:** JSON array of MediaAsset objects
+
+## Related APIs
+
+- [CMS API](/api/cms) - For page content management
+- [Data Types](/api/data-types) - Complete MediaAsset interface
+- [Storage System](/api/storage-system) - Storage architecture

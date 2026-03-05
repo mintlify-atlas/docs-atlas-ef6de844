@@ -1,0 +1,461 @@
+---
+title: 'Activities API'
+description: 'Manage activity calendar events with categories and synchronization'
+icon: 'calendar-days'
+---
+
+## Overview
+
+The Activities API manages the activity calendar with support for categories, virtual/in-person events, and bidirectional synchronization with the Zoom meetings module.
+
+---
+
+## Activity Management
+
+### getAll
+
+Retrieve all activity events.
+
+```typescript
+db.activities.getAll(): ActivityEvent[]
+```
+
+<ResponseField name="activities" type="ActivityEvent[]">
+  Array of all activity events
+</ResponseField>
+
+**Example:**
+
+```typescript
+const activities = db.activities.getAll();
+const published = activities.filter(a => a.status === 'Publicado');
+```
+
+---
+
+### getById
+
+Get a specific activity by ID.
+
+```typescript
+db.activities.getById(id: string): ActivityEvent | undefined
+```
+
+<ParamField path="id" type="string" required>
+  Activity ID
+</ParamField>
+
+<ResponseField name="activity" type="ActivityEvent | undefined">
+  The activity if found
+</ResponseField>
+
+**Example:**
+
+```typescript
+const activity = db.activities.getById('act_123');
+if (activity) {
+  console.log('Activity:', activity.title, activity.modality);
+}
+```
+
+---
+
+### create
+
+Create a new activity event.
+
+```typescript
+db.activities.create(
+  data: Omit<ActivityEvent, 'id' | 'createdAt' | 'updatedAt'>
+): ActivityEvent
+```
+
+<ParamField path="data.title" type="string" required>
+  Activity title
+</ParamField>
+
+<ParamField path="data.description" type="string" required>
+  HTML description from rich editor
+</ParamField>
+
+<ParamField path="data.category" type="string" required>
+  Category ID
+</ParamField>
+
+<ParamField path="data.tags" type="string[]" required>
+  Array of tags
+</ParamField>
+
+<ParamField path="data.startDate" type="string" required>
+  Start date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField path="data.endDate" type="string" required>
+  End date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField path="data.startTime" type="string" required>
+  Start time (HH:MM)
+</ParamField>
+
+<ParamField path="data.endTime" type="string" required>
+  End time (HH:MM)
+</ParamField>
+
+<ParamField path="data.modality" type="string" required>
+  'Virtual' | 'Presencial' | 'Híbrida'
+</ParamField>
+
+<ParamField path="data.status" type="string" required>
+  'Borrador' | 'Publicado' | 'Archivado'
+</ParamField>
+
+<ParamField path="data.featuredInDashboard" type="boolean" required>
+  Show in dashboard highlights
+</ParamField>
+
+<ParamField path="data.zoomUrl" type="string" optional>
+  Zoom meeting URL (for Virtual modality)
+</ParamField>
+
+<ResponseField name="activity" type="ActivityEvent">
+  The created activity with generated ID and timestamps
+</ResponseField>
+
+**Example:**
+
+```typescript
+const activity = db.activities.create({
+  title: 'Retiro de Meditación',
+  description: '<p>Retiro intensivo de fin de semana...</p>',
+  category: 'cat_1',
+  tags: ['meditación', 'retiro'],
+  startDate: '2024-03-15',
+  endDate: '2024-03-17',
+  startTime: '09:00',
+  endTime: '18:00',
+  modality: 'Presencial',
+  status: 'Publicado',
+  imageUrl: 'https://example.com/image.jpg',
+  featuredInDashboard: true,
+  organizerContactId: 'c_123'
+});
+```
+
+<Info>
+If `modality` is 'Virtual' and `zoomUrl` is provided, the activity automatically syncs to the Zoom meetings module.
+</Info>
+
+---
+
+### save
+
+Update an existing activity.
+
+```typescript
+db.activities.save(activity: ActivityEvent): ActivityEvent
+```
+
+<ParamField path="activity" type="ActivityEvent" required>
+  Complete activity object with updates
+</ParamField>
+
+<ResponseField name="activity" type="ActivityEvent">
+  The updated activity with new updatedAt timestamp
+</ResponseField>
+
+**Example:**
+
+```typescript
+const activity = db.activities.getById('act_123');
+if (activity) {
+  activity.status = 'Publicado';
+  activity.featuredInDashboard = true;
+  db.activities.save(activity);
+}
+```
+
+---
+
+### delete
+
+Delete an activity.
+
+```typescript
+db.activities.delete(id: string): void
+```
+
+<ParamField path="id" type="string" required>
+  Activity ID to delete
+</ParamField>
+
+**Example:**
+
+```typescript
+db.activities.delete('act_123');
+```
+
+---
+
+## Categories
+
+### getCategories
+
+Retrieve all activity categories.
+
+```typescript
+db.activities.getCategories(): ActivityCategory[]
+```
+
+<ResponseField name="categories" type="ActivityCategory[]">
+  Array of categories
+</ResponseField>
+
+**Example:**
+
+```typescript
+const categories = db.activities.getCategories();
+categories.forEach(cat => {
+  console.log(`${cat.name} (${cat.color})`);
+});
+```
+
+---
+
+### saveCategories
+
+Update category configuration.
+
+```typescript
+db.activities.saveCategories(
+  cats: ActivityCategory[]
+): ActivityCategory[]
+```
+
+<ParamField path="cats" type="ActivityCategory[]" required>
+  Complete array of categories
+</ParamField>
+
+<ResponseField name="categories" type="ActivityCategory[]">
+  The saved categories
+</ResponseField>
+
+**Example:**
+
+```typescript
+db.activities.saveCategories([
+  { id: 'cat_1', name: 'Meditación', color: '#6366f1', icon: 'Feather' },
+  { id: 'cat_2', name: 'Estudio', color: '#0891b2', icon: 'BookOpen' },
+  { id: 'cat_3', name: 'Retiro', color: '#059669', icon: 'Map' },
+  { id: 'cat_4', name: 'Charla', color: '#d97706', icon: 'Mic' },
+  { id: 'cat_5', name: 'Comunidad', color: '#db2777', icon: 'Users' }
+]);
+```
+
+---
+
+## Featured Activities
+
+### getFeatured
+
+Get activities marked as featured for dashboard display.
+
+```typescript
+db.activities.getFeatured(): ActivityEvent[]
+```
+
+<ResponseField name="activities" type="ActivityEvent[]">
+  Published activities with featuredInDashboard=true, sorted by start date
+</ResponseField>
+
+**Example:**
+
+```typescript
+const featured = db.activities.getFeatured();
+console.log(`${featured.length} featured activities`);
+```
+
+---
+
+## Zoom Synchronization
+
+Activities with `modality: 'Virtual'` automatically sync to the Meetings module.
+
+### How It Works
+
+1. Create a Virtual activity with a `zoomUrl`
+2. System automatically creates a `CalendarEvent` in `db.meetings`
+3. Activity stores the meeting ID in `linkedMeetingId`
+4. Meeting stores the activity ID in `linkedActivityId`
+
+**Example:**
+
+```typescript
+// Create virtual activity
+const activity = db.activities.create({
+  title: 'Weekly Meditation',
+  description: '<p>Join us for meditation</p>',
+  category: 'cat_1',
+  tags: ['meditation'],
+  startDate: '2024-03-20',
+  endDate: '2024-03-20',
+  startTime: '19:00',
+  endTime: '20:00',
+  modality: 'Virtual',
+  zoomUrl: 'https://zoom.us/j/123456789',
+  status: 'Publicado',
+  featuredInDashboard: true
+});
+
+// Automatically synced to meetings
+const meeting = db.meetings.getById(activity.linkedMeetingId);
+console.log('Meeting URL:', meeting?.meetingUrl);
+
+// Bidirectional reference
+console.log('Linked activity:', meeting?.linkedActivityId);
+```
+
+---
+
+## ActivityEvent Type
+
+```typescript
+interface ActivityEvent {
+  id: string;
+  title: string;
+  description: string;       // HTML content
+  category: string;          // Category ID
+  tags: string[];
+  startDate: string;         // YYYY-MM-DD
+  endDate: string;
+  startTime: string;         // HH:MM
+  endTime: string;
+  modality: 'Virtual' | 'Presencial' | 'Híbrida';
+  organizerContactId?: string;
+  status: 'Borrador' | 'Publicado' | 'Archivado';
+  imageUrl?: string;
+  seo?: SEOConfig;
+  featuredInDashboard: boolean;
+  
+  // Virtual meeting sync
+  linkedMeetingId?: string;   // CalendarEvent ID
+  zoomUrl?: string;
+  
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+---
+
+## ActivityCategory Type
+
+```typescript
+interface ActivityCategory {
+  id: string;
+  name: string;
+  color: string;   // Hex color
+  icon: string;    // Lucide icon name
+}
+```
+
+---
+
+## Filtering Activities
+
+### By Date Range
+
+```typescript
+const today = new Date().toISOString().split('T')[0];
+const upcoming = db.activities.getAll()
+  .filter(a => a.startDate >= today && a.status === 'Publicado')
+  .sort((a, b) => a.startDate.localeCompare(b.startDate));
+```
+
+### By Category
+
+```typescript
+const categoryId = 'cat_1';
+const byCategory = db.activities.getAll()
+  .filter(a => a.category === categoryId);
+```
+
+### By Modality
+
+```typescript
+const virtualEvents = db.activities.getAll()
+  .filter(a => a.modality === 'Virtual');
+```
+
+### By Tags
+
+```typescript
+const tagged = db.activities.getAll()
+  .filter(a => a.tags.includes('meditation'));
+```
+
+---
+
+## Complete Workflow Example
+
+```typescript
+// 1. Create category
+const categories = db.activities.getCategories();
+const meditationCategory = categories.find(c => c.name === 'Meditación');
+
+// 2. Create activity
+const activity = db.activities.create({
+  title: 'Sesión de Meditación Guiada',
+  description: '<h2>Descripción</h2><p>Contenido detallado...</p>',
+  category: meditationCategory!.id,
+  tags: ['meditación', 'mindfulness', 'principiantes'],
+  startDate: '2024-03-25',
+  endDate: '2024-03-25',
+  startTime: '19:00',
+  endTime: '20:00',
+  modality: 'Virtual',
+  zoomUrl: 'https://zoom.us/j/123456789?pwd=abc',
+  status: 'Publicado',
+  featuredInDashboard: true,
+  imageUrl: 'https://example.com/meditation.jpg',
+  organizerContactId: 'c_facilitator'
+});
+
+// 3. Activity automatically syncs to meetings
+const meeting = db.meetings.getById(activity.linkedMeetingId!);
+console.log('Meeting created:', meeting?.title);
+
+// 4. Get featured activities for homepage
+const featured = db.activities.getFeatured();
+console.log(`Showing ${featured.length} featured activities`);
+
+// 5. Filter upcoming by category
+const today = new Date().toISOString().split('T')[0];
+const upcomingMeditation = db.activities.getAll()
+  .filter(a => 
+    a.category === meditationCategory!.id &&
+    a.startDate >= today &&
+    a.status === 'Publicado'
+  )
+  .sort((a, b) => a.startDate.localeCompare(b.startDate));
+```
+
+---
+
+## SEO Configuration
+
+Activities support SEO metadata for public pages.
+
+```typescript
+const activity = db.activities.getById('act_123');
+if (activity) {
+  activity.seo = {
+    title: 'Retiro de Meditación | CAFH',
+    description: 'Únete a nuestro retiro de meditación...',
+    keywords: ['retiro', 'meditación', 'cafh'],
+    ogImage: 'https://example.com/og-image.jpg'
+  };
+  db.activities.save(activity);
+}
+```

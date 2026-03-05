@@ -1,0 +1,579 @@
+---
+title: 'Virtual Meetings & Zoom Integration'
+description: 'Complete guide to joining Zoom meetings, accessing session materials, and submitting feedback'
+icon: 'video'
+---
+
+# Virtual Meetings & Zoom Integration
+
+The CAFH Platform includes a complete virtual meeting system integrated with Zoom for seamless online community gatherings.
+
+## The Zoom Widget
+
+Your member dashboard features a prominent **Sala Virtual** (Virtual Room) widget in the sidebar.
+
+### Widget Display
+
+**When an upcoming virtual event exists:**
+
+<Steps>
+  <Step title="Event Information">
+    - Event title
+    - Date and time with icons
+    - Live status indicator (if currently happening)
+  </Step>
+  
+  <Step title="Meeting Status Badge">
+    - **Programada**: Scheduled future event
+    - **● En vivo**: Currently live (animated pulse)
+    - **Finalizada**: Completed event
+  </Step>
+  
+  <Step title="Join Button">
+    Large blue button: "Unirse a la sesión"
+    Styled with Zoom blue (#2D8CFF)
+  </Step>
+</Steps>
+
+**When no virtual events are scheduled:**
+
+- Calendar icon with empty state message
+- "Sin sesiones virtuales próximas"
+- Link to view full calendar
+
+### Widget Data Source
+
+```typescript
+const nextEvent = db.events.getAll().find(e => 
+  (e.type === 'Online' || e.type === 'Híbrido') && 
+  e.meetingUrl
+);
+```
+
+The widget shows the **first** online or hybrid event that has a `meetingUrl` configured.
+
+## Joining a Meeting
+
+When you're ready to join the virtual session:
+
+<Steps>
+  <Step title="Click Join Button">
+    Click "Unirse a la sesión" on the Zoom widget. This opens the **Event Detail Sheet**.
+  </Step>
+  
+  <Step title="Review Session Details">
+    The detail modal shows:
+    - Full agenda with time estimates
+    - Session materials and resources
+    - Meeting information
+    - Organizer contact
+  </Step>
+  
+  <Step title="Check for Blocks">
+    The system checks if you have pending feedback from a previous session. If blocked, you'll see a warning.
+  </Step>
+  
+  <Step title="Launch Zoom">
+    Click the "Unirse a Zoom" button. This:
+    - Opens the Zoom URL in a new tab
+    - Redirects you to Zoom (web or app)
+    - Closes the detail modal
+  </Step>
+  
+  <Step title="Connect to Zoom">
+    Follow Zoom's prompts to:
+    - Enable camera and microphone
+    - Join waiting room (if configured)
+    - Enter the meeting
+  </Step>
+</Steps>
+
+<Note>
+The platform opens Zoom in a new browser tab. You may be prompted to launch the Zoom desktop application if installed.
+</Note>
+
+## Event Detail Sheet
+
+The detail modal provides comprehensive pre-meeting information:
+
+### Left Panel: Session Briefing
+
+#### Structured Agenda
+
+If the event has structured agenda items:
+
+```typescript
+agendaItems: [
+  {
+    id: "ai_1",
+    order: 1,
+    title: "Apertura y meditación",
+    description: "Centramiento inicial",
+    durationMinutes: 10
+  },
+  {
+    id: "ai_2",
+    order: 2,
+    title: "Enseñanza del día",
+    durationMinutes: 30
+  }
+]
+```
+
+**Display:**
+- Timeline visualization with connecting line
+- Duration badges for each item
+- Item descriptions (if provided)
+- **Total duration** calculated automatically
+
+**Example:**
+```
+○ Apertura y meditación (10 min)
+  Centramiento inicial
+  
+○ Enseñanza del día (30 min)
+
+○ Preguntas y respuestas (15 min)
+
+Total estimado: 55 min
+```
+
+<Tip>
+Use the agenda to plan your time and know what to expect during the session.
+</Tip>
+
+#### Material de Apoyo (Support Materials)
+
+The event can include references to media assets:
+
+- **Documents**: PDFs, guides, worksheets
+- **Audio**: Preparatory meditations
+- **Video**: Instructional videos
+- **Images**: Slides, diagrams
+
+**Each material shows:**
+- File type icon (color-coded)
+- Material title
+- File type and size
+- Download/view icon
+
+<Card title="Read-Only Access" icon="link">
+  Materials are linked from the Media Library. They cannot be modified through the meeting interface - ensuring consistency across all sessions.
+</Card>
+
+### Right Panel: Meeting Actions
+
+#### Zoom Meeting Information
+
+- **Platform Badge**: "Zoom Meeting"
+- **Official Platform Label**: "Plataforma oficial de la comunidad"
+- **Status Indicator**: Green dot if room is available
+
+#### Meeting Details Box
+
+```
+🕐 Time: 19:00 - 20:30
+👤 Organiza: [Organizer Name]
+🛡️ Sala privada para miembros
+```
+
+#### Join Button States
+
+**Available (No Blocks):**
+```html
+<button className="bg-cafh-indigo hover:bg-blue-800">
+  [Zoom Icon] Unirse a Zoom →
+</button>
+```
+
+**Blocked (Pending Feedback):**
+```html
+<button disabled className="bg-slate-100 cursor-not-allowed">
+  🔒 Evaluación pendiente
+</button>
+```
+
+<Warning>
+If you haven't submitted feedback for a previous session, you cannot join new meetings until the evaluation is complete.
+</Warning>
+
+#### Copy Meeting Link
+
+Below the join button:
+
+- **Copy Link Button**: "Copiar enlace de invitación"
+- Copies the Zoom URL to clipboard
+- Shows "Enlace copiado" confirmation with checkmark
+
+**Use cases:**
+- Share with other members
+- Save for later reference
+- Add to personal calendar
+
+## Zoom Platform Details
+
+The platform supports **Zoom exclusively** as the virtual meeting provider.
+
+### Zoom URL Format
+
+```typescript
+meetingUrl: "https://zoom.us/j/1234567890?pwd=abc123"
+```
+
+Optionally, events can also store:
+
+```typescript
+zoomId: "123 456 7890"        // Meeting ID
+zoomPassword: "abc123"         // Meeting password
+platform: "Zoom"               // Always Zoom
+```
+
+### Zoom Features Supported
+
+- **Waiting Room**: Members enter waiting room until host admits
+- **Password Protection**: Secure meetings with password
+- **Screen Sharing**: Hosts can share presentations
+- **Chat**: In-meeting text communication
+- **Recording**: Sessions can be recorded (host permission)
+
+<Note>
+The CAFH Platform handles meeting access, but all in-meeting features are controlled by Zoom's native interface.
+</Note>
+
+## Post-Session Feedback
+
+After joining a meeting, the platform automatically triggers a **mandatory feedback wizard**.
+
+### Feedback Wizard Flow
+
+<Steps>
+  <Step title="Trigger Timing">
+    2 seconds after joining the Zoom meeting:
+    ```typescript
+    setTimeout(() => {
+      setShowFeedback(true);
+    }, 2000);
+    ```
+  </Step>
+  
+  <Step title="Introduction Screen">
+    Explains:
+    - Feedback is mandatory
+    - Number of questions
+    - Helps improve future sessions
+    - Required to join future meetings
+  </Step>
+  
+  <Step title="Question Types">
+    The wizard supports three question formats:
+    
+    **Rating (1-5 stars):**
+    ```
+    ⭐⭐⭐⭐⭐
+    "¿Cómo evaluarías la calidad general de la sesión?"
+    ```
+    
+    **Multiple Choice:**
+    ```
+    ○ La temática
+    ○ La dinámica grupal  
+    ○ El material de apoyo
+    ○ La conducción
+    ```
+    
+    **Text (Optional):**
+    ```
+    [Text area]
+    "Comparte algún comentario o sugerencia"
+    ```
+  </Step>
+  
+  <Step title="Progress Tracking">
+    - Progress bar showing completion percentage
+    - "Pregunta X de Y" counter
+    - Back button to review previous answers
+  </Step>
+  
+  <Step title="Submission">
+    Click "Enviar evaluación ✓" to submit all responses.
+  </Step>
+  
+  <Step title="Confirmation & Rewards">
+    Success screen shows:
+    - "¡Gracias por tu evaluación!"
+    - "+10 puntos de participación 🎉"
+    - "Participación registrada" badge
+  </Step>
+</Steps>
+
+### Feedback Data Structure
+
+```typescript
+interface FeedbackResponse {
+  id: string;
+  eventId: string;          // Which meeting
+  userId: string;           // Who submitted
+  userName: string;
+  submittedAt: string;      // Timestamp
+  answers: {
+    questionId: string;
+    questionText: string;
+    value: string | number; // Answer
+  }[];
+  overallRating: number;    // Average of all ratings
+}
+```
+
+### What Happens on Submission
+
+<Steps>
+  <Step title="Response Saved">
+    Your feedback is stored in `cafh_feedback_r_v1`.
+  </Step>
+  
+  <Step title="Participation Recorded">
+    A `ParticipationRecord` is created:
+    ```typescript
+    {
+      userId: "u_member",
+      eventId: "evt_123",
+      eventTitle: "Meditación semanal",
+      participatedAt: "2024-03-15T19:00:00",
+      feedbackSubmitted: true,
+      feedbackBlocksNext: false
+    }
+    ```
+  </Step>
+  
+  <Step title="Badge Awarded">
+    Automatic star badge:
+    ```typescript
+    {
+      type: "estrella",
+      label: "Asistencia registrada",
+      reason: "Evaluación completada: [Event Title]"
+    }
+    ```
+  </Step>
+  
+  <Step title="Block Removed">
+    Your block status is cleared, allowing you to join future meetings.
+  </Step>
+</Steps>
+
+<Card title="Gamification System" icon="trophy" href="#badges-and-recognition">
+  Learn more about the badge and recognition system below.
+</Card>
+
+## Feedback Questions Management
+
+Administrators configure feedback questions:
+
+```typescript
+interface FeedbackQuestion {
+  id: string;
+  order: number;                    // Display sequence
+  text: string;                     // Question text
+  type: 'rating' | 'multiple_choice' | 'text';
+  options?: string[];               // For multiple choice
+  isActive: boolean;                // Can be toggled
+}
+```
+
+### Default Questions
+
+1. **Rating**: "¿Cómo evaluarías la calidad general de la sesión?"
+2. **Multiple Choice**: "¿Qué aspecto te resultó más valioso?"
+3. **Text**: "Comparte algún comentario o sugerencia (opcional)"
+
+<Note>
+Administrators can add, edit, reorder, and deactivate questions without affecting previously submitted feedback.
+</Note>
+
+## Blocking System
+
+The platform enforces feedback completion to maintain data quality:
+
+### How Blocking Works
+
+```typescript
+db.feedback.hasBlockingFeedback(userId: string): boolean
+```
+
+This checks if:
+1. You have a `ParticipationRecord` with `feedbackBlocksNext: true`
+2. The feedback was not submitted (`feedbackSubmitted: false`)
+
+**Block Scenarios:**
+
+<AccordionGroup>
+  <Accordion title="First Event - No Block" icon="check">
+    - Join your first meeting
+    - No previous participation records
+    - Full access granted
+  </Accordion>
+  
+  <Accordion title="Skipped Feedback - Blocked" icon="lock">
+    - Attended a meeting
+    - Closed feedback wizard without completing
+    - Cannot join next meeting until submitted
+  </Accordion>
+  
+  <Accordion title="Feedback Completed - Unblocked" icon="unlock">
+    - Submitted feedback after previous event
+    - Block cleared automatically
+    - Can join future meetings
+  </Accordion>
+</AccordionGroup>
+
+### Block UI Indicators
+
+**On Zoom Widget:**
+```html
+<span className="bg-red-500/20 text-red-300">
+  🔒 Bloqueado
+</span>
+```
+
+**On Detail Sheet:**
+```html
+<div className="bg-red-50 border-red-100">
+  <p>Acceso bloqueado</p>
+  <p>Completa tu evaluación pendiente...</p>
+  <button>Ir a la evaluación →</button>
+</div>
+```
+
+**On Join Button:**
+```html
+<button disabled>
+  🔒 Evaluación pendiente
+</button>
+```
+
+<Warning>
+You cannot bypass the blocking system. Complete your pending feedback to regain meeting access.
+</Warning>
+
+## Badges and Recognition
+
+The platform includes a gamification system to recognize active participation:
+
+### Badge Types
+
+<CardGroup cols={3}>
+  <Card title="⭐ Estrella" icon="star">
+    **Automatic**: Awarded for completing feedback
+  </Card>
+  <Card title="🥉 Bronce" icon="medal">
+    Manual award for consistent participation
+  </Card>
+  <Card title="🥈 Plata" icon="medal">
+    Manual award for significant contributions
+  </Card>
+</CardGroup>
+
+<CardGroup cols={2}>
+  <Card title="🥇 Oro" icon="trophy">
+    Manual award for exceptional community service
+  </Card>
+  <Card title="🏆 Especial" icon="award">
+    Manual award for unique achievements
+  </Card>
+</CardGroup>
+
+### Badge Structure
+
+```typescript
+interface MemberBadge {
+  id: string;
+  userId: string;
+  type: BadgeType;          // estrella, medalla_bronce, etc.
+  label: string;            // "Asistencia registrada"
+  reason: string;           // Detailed description
+  awardedAt: string;        // Timestamp
+  awardedBy: string;        // Admin who awarded (or "system")
+}
+```
+
+### Where Badges Appear
+
+**On Zoom Widget Footer:**
+```html
+<div className="border-t border-white/10 pt-4">
+  <MemberBadgesRow userId={currentUser.id} maxVisible={4} />
+</div>
+```
+
+Shows up to 4 recent badges with:
+- Badge emoji
+- Badge type name
+- Hover tooltip with full reason
+- "+X más" indicator if more than 4
+
+**Badge Display Example:**
+```
+⭐ Estrella  🥉 Bronce  ⭐ Estrella  +2 más
+```
+
+<Tip>
+Badges are visible to you on your dashboard and to administrators in the member management interface.
+</Tip>
+
+## Meeting History
+
+Your participation in virtual meetings is tracked in two places:
+
+### Activity History Tab
+
+In the **Historial** tab of your dashboard:
+
+- Event type: "Event"
+- Event title
+- Date attended
+- Status: "Completado"
+- Visual timeline with completion indicator
+
+### Participation Records
+
+Backend storage of all participations:
+
+```typescript
+db.gamification.getParticipation(userId: string)
+```
+
+Returns array of all your participation records including:
+- Events attended
+- Feedback submission status
+- Timestamps
+- Points awarded
+
+## Platform Status (Zoom)
+
+The Zoom widget shows real-time meeting status:
+
+### Status Values
+
+<AccordionGroup>
+  <Accordion title="Programada" icon="calendar">
+    **Color**: White/slate
+    
+    Meeting is scheduled for the future. Join button available.
+  </Accordion>
+  
+  <Accordion title="En curso" icon="circle">
+    **Color**: Emerald green with pulse animation
+    
+    Meeting is happening right now. "● En vivo" badge displayed.
+  </Accordion>
+  
+  <Accordion title="Finalizada" icon="check">
+    **Color**: Gray
+    
+    Meeting has ended. No join button (or grayed out).
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+Meeting status is manually updated by administrators. Automatic status detection based on time is a planned enhancement.
+</Note>

@@ -1,0 +1,231 @@
+---
+title: 'CMS Overview'
+description: 'Complete content management system for the CAFH Platform'
+icon: 'layout'
+---
+
+The CAFH Platform includes a powerful Content Management System (CMS) that allows administrators to create, edit, and manage all website content without code.
+
+## Core Capabilities
+
+<CardGroup cols={2}>
+  <Card title="Dynamic Pages" icon="file-text">
+    Create unlimited custom pages with drag-and-drop sections
+  </Card>
+  <Card title="Blog Management" icon="rss">
+    Publish and manage blog posts with rich media support
+  </Card>
+  <Card title="Media Library" icon="images">
+    Centralized asset management with search and tagging
+  </Card>
+  <Card title="Change Tracking" icon="clock-rotate-left">
+    Automatic versioning and rollback capabilities
+  </Card>
+</CardGroup>
+
+## Content Types
+
+The CMS manages several content types defined in `types.ts:88-99`:
+
+```typescript
+export interface ContentItem {
+  id: string;
+  title: string;
+  type: 'Article' | 'Page' | 'Event' | 'Resource';
+  status: 'Published' | 'Draft';
+  author: string;
+  publishDate: string;
+  views: number;
+  tags: string[];
+  imageUrl?: string;
+  seo?: SEOConfig;
+}
+```
+
+### Supported Content Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| **Article** | Long-form content with SEO | Blog posts, announcements |
+| **Page** | Custom pages with sections | About, Services, Landing pages |
+| **Event** | Calendar events with metadata | Workshops, meetings, retreats |
+| **Resource** | Downloadable or viewable assets | PDFs, videos, audio files |
+
+## Home Configuration
+
+The Home page uses a centralized configuration system (`storage.ts:484-523`):
+
+<Steps>
+  <Step title="Access Home Editor">
+    Navigate to **CMS → Home** in the admin panel
+  </Step>
+  <Step title="Edit Hero Section">
+    Configure title, backgrounds, CTA buttons, and video modal settings
+  </Step>
+  <Step title="Manage Sections">
+    Reorder sections using drag handles or the section order configuration
+  </Step>
+  <Step title="Configure Footer">
+    Edit footer columns, social links, and subscription settings
+  </Step>
+  <Step title="Save Changes">
+    All changes are logged in the change history with user attribution
+  </Step>
+</Steps>
+
+### Home Configuration Structure
+
+```typescript
+export interface HomeConfig {
+  hero: HeroConfig;
+  searchSubtitle: string;
+  searchItems: SearchItem[];
+  threeColumns: HomeThreeColumn[];
+  blogSection: BlogConfig;
+  activitiesSection: {
+    title: string;
+    subtitle: string;
+    maxEvents: number;
+    order: number;
+  };
+  sectionOrder: string[];
+  footer: FooterConfig;
+}
+```
+
+## SEO Configuration
+
+Every content item supports comprehensive SEO metadata (`types.ts:69-75`):
+
+```typescript
+export interface SEOConfig {
+  title: string;
+  description: string;
+  keywords: string[];
+  ogImage?: string;
+  schemaType?: string; // 'Article', 'Event', 'Organization'
+}
+```
+
+<Note>
+SEO titles should be 50-60 characters. Meta descriptions work best at 150-160 characters.
+</Note>
+
+## Change Log System
+
+The CMS automatically tracks all modifications (`storage.ts:458-474`):
+
+- **User Attribution**: Every change records the user who made it
+- **Timestamps**: Precise ISO timestamps for all operations
+- **Previous State**: Stores JSON snapshot for rollback capability
+- **Action Types**: Create, Update, Delete, Rollback
+
+### Accessing Change Logs
+
+View change logs in **CMS → History** to see:
+
+- All content modifications across the platform
+- Which admin made each change
+- Detailed descriptions of changes
+- Ability to restore previous versions
+
+```typescript
+export interface ChangeLog {
+  id: string;
+  userId: string;
+  userName: string;
+  section: string; // e.g., 'Home > Hero', 'CMS > Article #12'
+  action: 'Create' | 'Update' | 'Delete' | 'Rollback';
+  timestamp: string;
+  details: string;
+  previousState?: string; // JSON stringified for rollback
+}
+```
+
+## Navigation Management
+
+The mega menu system supports multi-level navigation with columns (`types.ts:203-214`):
+
+<Steps>
+  <Step title="Access Menu Editor">
+    Navigate to **CMS → Mega Menu** in admin panel
+  </Step>
+  <Step title="Add Menu Items">
+    Create top-level menu items with labels and paths
+  </Step>
+  <Step title="Configure Columns">
+    For dropdown menus, add columns with grouped links
+  </Step>
+  <Step title="Set Descriptions">
+    Add optional descriptions for items with icons
+  </Step>
+  <Step title="Link to Content">
+    Use dynamic page slugs (e.g., `/p/quienes-somos`) or static routes
+  </Step>
+</Steps>
+
+### Available Routes Helper
+
+The system provides a helper to list all available routes (`storage.ts:567-600`):
+
+```javascript
+db.cms.getAllAvailableRoutes()
+// Returns both static routes and dynamic pages
+```
+
+## Content Storage
+
+All CMS data is stored in localStorage with these keys:
+
+| Key | Content Type |
+|-----|-------------|
+| `cafh_home_config_v1` | Home page configuration |
+| `cafh_pages_v1` | Custom dynamic pages |
+| `cafh_menu_v1` | Mega menu structure |
+| `cafh_changelog_v1` | Change history (last 100) |
+| `cafh_blog_v1` | Blog posts |
+| `cafh_blog_config_v1` | Blog section settings |
+| `cafh_content_v1` | All content items |
+
+<Warning>
+The change log keeps only the last 100 entries. Critical changes should be documented externally for long-term audit trails.
+</Warning>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Content Organization">
+    - Use consistent naming conventions for pages
+    - Tag content properly for search and filtering
+    - Keep URLs short and SEO-friendly
+    - Use Draft status while working on content
+  </Accordion>
+
+  <Accordion title="Media Management">
+    - Optimize images before upload (WebP recommended)
+    - Use descriptive filenames
+    - Add alt text for accessibility
+    - Organize media with folders and tags
+  </Accordion>
+
+  <Accordion title="SEO Optimization">
+    - Write unique meta descriptions for each page
+    - Use header hierarchy correctly (H1 → H2 → H3)
+    - Add schema.org markup for rich snippets
+    - Update Open Graph images for social sharing
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={3}>
+  <Card title="Pages Editor" icon="file-pen" href="/admin/pages-editor">
+    Create dynamic pages with section builder
+  </Card>
+  <Card title="Blog Management" icon="rss" href="/admin/blog-management">
+    Publish and manage blog content
+  </Card>
+  <Card title="Media Library" icon="photo-film" href="/admin/media-library">
+    Upload and organize media assets
+  </Card>
+</CardGroup>

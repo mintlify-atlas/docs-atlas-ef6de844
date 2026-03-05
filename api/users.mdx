@@ -1,0 +1,235 @@
+---
+title: 'User Management API'
+description: 'Authentication, user profile management, and session handling'
+icon: 'user'
+---
+
+## Authentication
+
+The authentication module provides methods for user login, logout, and session management.
+
+### login
+
+Authenticate a user with email and password.
+
+```typescript
+db.auth.login(email: string, pass: string): User | null
+```
+
+<ParamField path="email" type="string" required>
+  User's email address
+</ParamField>
+
+<ParamField path="pass" type="string" required>
+  User's password
+</ParamField>
+
+<ResponseField name="User" type="object | null">
+  Returns User object if authentication succeeds, null otherwise
+</ResponseField>
+
+**Example:**
+
+```typescript
+const user = db.auth.login('admin@cafh.cl', 'admin123');
+if (user) {
+  console.log('Logged in:', user.name);
+}
+```
+
+---
+
+### logout
+
+End the current user session.
+
+```typescript
+db.auth.logout(): void
+```
+
+Removes the session from localStorage.
+
+**Example:**
+
+```typescript
+db.auth.logout();
+```
+
+---
+
+### getCurrentUser
+
+Retrieve the currently authenticated user.
+
+```typescript
+db.auth.getCurrentUser(): User | null
+```
+
+<ResponseField name="User" type="object | null">
+  Returns the current user's session data, or null if not logged in
+</ResponseField>
+
+**Example:**
+
+```typescript
+const currentUser = db.auth.getCurrentUser();
+if (currentUser) {
+  console.log('Current user:', currentUser.email);
+}
+```
+
+---
+
+### getAllUsers
+
+Get all registered users in the system.
+
+```typescript
+db.auth.getAllUsers(): User[]
+```
+
+<ResponseField name="users" type="User[]">
+  Array of all users
+</ResponseField>
+
+**Example:**
+
+```typescript
+const users = db.auth.getAllUsers();
+console.log('Total users:', users.length);
+```
+
+---
+
+### updateCurrentUser
+
+Update the current user's profile information.
+
+```typescript
+db.auth.updateCurrentUser(updates: Partial<User>): User | null
+```
+
+<ParamField path="updates" type="Partial<User>" required>
+  Object containing the fields to update
+</ParamField>
+
+<ResponseField name="User" type="object | null">
+  Returns the updated user object, or null if no session exists
+</ResponseField>
+
+**Example:**
+
+```typescript
+const updated = db.auth.updateCurrentUser({
+  name: 'New Name',
+  avatarUrl: 'https://example.com/avatar.jpg',
+  interests: ['Meditación', 'Yoga']
+});
+```
+
+---
+
+## User Types
+
+### User
+
+```typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatarUrl: string;
+  tenantId: string;
+  interests: string[];
+  joinedDate: string;
+  coverUrl?: string;
+  phone?: string;
+  city?: string;
+}
+```
+
+### UserRole
+
+```typescript
+enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  EDITOR = 'EDITOR',
+  MEMBER = 'MEMBER',
+  GUEST = 'GUEST'
+}
+```
+
+---
+
+## User History
+
+Track user activities and engagement.
+
+### getHistory
+
+Retrieve the activity history for the current user.
+
+```typescript
+db.user.getHistory(): UserActivity[]
+```
+
+<ResponseField name="activities" type="UserActivity[]">
+  Array of user activities
+</ResponseField>
+
+**Example:**
+
+```typescript
+const history = db.user.getHistory();
+console.log('Recent activities:', history);
+```
+
+---
+
+### addHistory
+
+Log a new user activity.
+
+```typescript
+db.user.addHistory(activity: UserActivity): void
+```
+
+<ParamField path="activity" type="UserActivity" required>
+  The activity to record
+</ParamField>
+
+**Example:**
+
+```typescript
+db.user.addHistory({
+  id: 'act_123',
+  type: 'Event',
+  title: 'Meditation Workshop',
+  date: '2024-03-15',
+  status: 'Registered'
+});
+```
+
+---
+
+### getPreferences
+
+Get user preferences (theme, notifications, etc.).
+
+```typescript
+db.user.getPreferences(): any
+```
+
+<ResponseField name="preferences" type="object">
+  User preference settings
+</ResponseField>
+
+**Example:**
+
+```typescript
+const prefs = db.user.getPreferences();
+console.log('Theme:', prefs.theme);
+console.log('Notifications:', prefs.notifications);
+```

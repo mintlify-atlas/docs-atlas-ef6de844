@@ -1,0 +1,312 @@
+---
+title: Engagement Metrics
+description: Track member engagement, activity patterns, and behavioral analytics across the platform
+icon: chart-line
+---
+
+Engagement metrics help you understand how members interact with content, events, and communication across the platform.
+
+## Member Engagement Overview
+
+The platform tracks comprehensive engagement data for each contact:
+
+### Engagement Score Calculation
+
+Each contact has an `engagementScore` (0-100) calculated from multiple factors:
+
+```typescript
+interface Contact {
+  engagementScore?: number;  // Composite score 0-100
+  status: 'Subscribed' | 'Unsubscribed' | 'Bounced' | 'Pending';
+  tags: string[];
+  listIds?: string[];
+}
+```
+
+<Accordion title="How Engagement Score is Calculated">
+  The engagement score combines:
+  - **Email interaction**: Opens and clicks (40% weight)
+  - **Recent activity**: Activity in last 30 days (30% weight)
+  - **Profile completion**: Tags, interests, profile data (20% weight)
+  - **Subscription status**: Active vs inactive (10% weight)
+
+  A score of:
+  - **80-100**: Highly engaged member
+  - **50-79**: Moderately engaged
+  - **20-49**: Low engagement
+  - **0-19**: Inactive or at-risk
+</Accordion>
+
+## Email Engagement Metrics
+
+### Individual Contact Metrics
+
+For each contact, the platform calculates:
+
+```typescript
+const totalEmails = logs.length;
+const opened = logs.filter(l => l.status === 'Opened' || l.status === 'Clicked').length;
+const clicked = logs.filter(l => l.status === 'Clicked').length;
+const openRate = totalEmails > 0 ? Math.round((opened / totalEmails) * 100) : 0;
+```
+
+**Displayed in Contact Panel:**
+- Total emails sent to contact
+- Open rate percentage
+- Total clicks recorded
+- Engagement score out of 100
+
+### Email Status Types
+
+<CardGroup cols={3}>
+  <Card title="Delivered" icon="check-circle">
+    Email successfully delivered to inbox
+  </Card>
+  <Card title="Opened" icon="envelope-open">
+    Contact opened the email
+  </Card>
+  <Card title="Clicked" icon="mouse-pointer">
+    Contact clicked a link in the email
+  </Card>
+  <Card title="Bounced" icon="exclamation-circle">
+    Email bounced (invalid address or full inbox)
+  </Card>
+  <Card title="Failed" icon="times-circle">
+    Send failed due to technical error
+  </Card>
+  <Card title="Queued" icon="clock">
+    Email queued for sending
+  </Card>
+</CardGroup>
+
+## Content Interaction Tracking
+
+The platform tracks all content consumption:
+
+### Tracked Interactions
+
+```typescript
+db.analytics.trackConsumption({
+  userId: 'u_member',
+  assetId: 'content_123',
+  assetName: 'Meditation Guide',
+  assetType: 'video',
+  tags: ['Meditación', 'Bienestar']
+});
+```
+
+This data feeds:
+- Member activity history
+- Content recommendation engine
+- Popular content rankings
+- Tag-based personalization
+
+### Content Interaction Schema
+
+```typescript
+interface ContentInteraction {
+  id: string;
+  userId?: string;        // Optional for public content
+  assetId: string;
+  assetName: string;
+  assetType: string;      // 'video' | 'audio' | 'document' | 'Article'
+  tags: string[];
+  timestamp: string;
+}
+```
+
+<Note>
+  Anonymous users can also generate interactions (userId optional). This helps track popular content even for non-logged-in visitors.
+</Note>
+
+## Activity History
+
+Each user has an activity log stored in `db.user.getHistory()`:
+
+```typescript
+interface UserActivity {
+  id: string;
+  type: 'Event' | 'Reading' | 'Donation' | 'Meditation';
+  title: string;
+  date: string;
+  status: 'Completed' | 'Registered';
+}
+```
+
+**Tracked Activities:**
+- Event registrations and attendance
+- Reading progress (articles, resources)
+- Donations and contributions
+- Meditation session completions
+
+## Campaign Performance Metrics
+
+When viewing campaign or list-specific metrics:
+
+### Filtering by CRM List
+
+```typescript
+const contactsInList = contacts.filter(c => c.listIds?.includes(selectedMetricsList));
+const contactIds = new Set(contactsInList.map(c => c.id));
+const logsForList = allEmailLogs.filter(l => contactIds.has(l.contactId));
+
+// Calculate list-specific rates
+const openedCount = logsForList.filter(l => l.status === 'Opened' || l.status === 'Clicked').length;
+const openRate = Math.round((openedCount / logsForList.length) * 100);
+```
+
+### Metrics Display
+
+The CRM module shows:
+- Total subscribers in list
+- Average open rate for list
+- Average click rate
+- List growth over time
+- Most engaged contacts in list
+
+## Member Retention Analytics
+
+### Effectiveness Rate
+
+Calculated as:
+
+```typescript
+const effectivenessRate = totalContacts > 0 
+  ? Math.round((subscribedContacts / totalContacts) * 100) 
+  : 0;
+```
+
+This metric shows the percentage of total contacts who remain actively subscribed.
+
+### Contact Growth
+
+Monthly acquisition tracked via:
+
+```typescript
+contacts.forEach(c => {
+  if (c.createdAt) {
+    const m = new Date(c.createdAt).getMonth();
+    contactsByMonth[m]++;
+  }
+});
+```
+
+## Real-Time Metrics
+
+The platform provides real-time metrics via:
+
+### Queue Status (for email sending)
+
+```typescript
+interface QueueStatus {
+  pending: number;          // Emails waiting to send
+  sent: number;             // Successfully sent
+  failed: number;           // Failed sends
+  sentCountThisHour: number;// Rate limiting tracker
+  limit: number;            // Hourly send limit (default 80)
+}
+```
+
+Accessed via:
+```typescript
+const status = await db.emails.getQueueStatus();
+```
+
+<Warning>
+  The hourly send limit prevents rate-limiting by email providers. Default is 80 emails/hour for cPanel SMTP.
+</Warning>
+
+## Engagement Segmentation
+
+You can segment contacts based on engagement:
+
+<Steps>
+  <Step title="Calculate Engagement Score">
+    Run engagement score calculation for all contacts based on recent activity
+  </Step>
+  <Step title="Create Segments">
+    Create lists for "Highly Engaged", "Moderate", "Low", and "At Risk" segments
+  </Step>
+  <Step title="Targeted Campaigns">
+    Send personalized campaigns to each segment with relevant content
+  </Step>
+  <Step title="Re-engagement Flows">
+    Use automation rules to target low-engagement contacts with win-back campaigns
+  </Step>
+</Steps>
+
+## Metrics API Reference
+
+### Email Metrics
+
+```typescript
+// Get global email metrics
+const metrics = db.emails.getMetrics();
+// Returns: { totalSent, openRate, clickRate, bounceRate, history }
+
+// Get logs for specific contact
+const logs = db.emails.getLogs(contactId);
+```
+
+### Content Analytics
+
+```typescript
+// Get all interactions
+const interactions = db.analytics.getInteractions();
+
+// Track new interaction
+db.analytics.trackConsumption({
+  userId: currentUser.id,
+  assetId: 'article_123',
+  assetName: 'Meditation Guide',
+  assetType: 'Article',
+  tags: ['Meditación']
+});
+```
+
+### User Activity
+
+```typescript
+// Get user's activity history
+const history = db.user.getHistory();
+
+// Add activity
+db.user.addHistory({
+  id: generateId(),
+  type: 'Meditation',
+  title: 'Morning meditation session',
+  date: new Date().toISOString(),
+  status: 'Completed'
+});
+```
+
+## Engagement Best Practices
+
+<AccordionGroup>
+  <Accordion title="Monitor Open Rates Weekly">
+    Healthy open rates for spiritual content typically range 30-50%. If rates drop below 25%, review subject lines and sending frequency.
+  </Accordion>
+  
+  <Accordion title="Segment by Engagement">
+    Create separate lists for high, medium, and low engagement. Send more frequent content to highly engaged members.
+  </Accordion>
+  
+  <Accordion title="Track Content Preferences">
+    Use tags from content interactions to understand what resonates. Members who click meditation content should receive more meditation-focused campaigns.
+  </Accordion>
+  
+  <Accordion title="Re-engage Inactive Members">
+    Create automation flows for contacts with no opens in 60+ days. Send value-focused content to win them back.
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Analytics Dashboard" icon="chart-bar" href="/admin/analytics-dashboard">
+    View comprehensive platform analytics
+  </Card>
+  <Card title="Content Performance" icon="file-chart-line" href="/admin/content-performance">
+    Track individual content piece performance
+  </Card>
+</CardGroup>

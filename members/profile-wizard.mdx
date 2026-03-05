@@ -1,0 +1,198 @@
+---
+title: 'Profile Wizard & Personalization'
+description: 'Learn how the profile wizard creates your personalized member experience'
+icon: 'wand-magic-sparkles'
+---
+
+# Profile Wizard & Personalization
+
+The Profile Wizard is the platform's intelligent onboarding system that creates a personalized experience based on your interests and spiritual journey stage.
+
+## How the Wizard Works
+
+The wizard system follows a structured flow to build your unique member profile:
+
+### Question Structure
+
+Each wizard question includes:
+
+```typescript
+{
+  id: string;              // Unique identifier
+  order: number;           // Display sequence
+  question: string;        // Main question text
+  subtitle?: string;       // Optional clarification
+  options: WizardOption[]; // Available choices
+  isActive: boolean;       // Can be toggled by admins
+}
+```
+
+### Answer Options
+
+Each answer option contains:
+
+- **Label**: The display text you see
+- **Value**: Internal identifier
+- **Profile Tags**: Associated interest tags (e.g., "Meditación", "Estudio", "Comunidad")
+
+<Note>
+All questions are configurable by administrators. The wizard can be customized to match your organization's specific journey framework.
+</Note>
+
+## Profile Types (Archetypes)
+
+Based on your wizard responses, you're assigned a **Profile Type**. Each profile type includes:
+
+### Profile Type Components
+
+<AccordionGroup>
+  <Accordion title="Basic Information">
+    - **Name**: The archetype name (e.g., "Explorador Espiritual")
+    - **Description**: What this profile type represents
+    - **Emoji**: Visual identifier for quick recognition
+    - **Color**: Theme color for UI elements
+  </Accordion>
+  
+  <Accordion title="Content Personalization">
+    - **Content Tags**: Array of tags that determine which content appears in your recommendations
+    - **Kit Items**: Curated starter resources specific to your journey stage
+  </Accordion>
+  
+  <Accordion title="CRM Integration">
+    - **CRM Tag**: Automatically applied to your contact record
+    - **CRM List ID**: Optional list assignment for targeted communications
+  </Accordion>
+</AccordionGroup>
+
+## User Wizard Profile Data
+
+After completing the wizard, a `UserWizardProfile` is created with:
+
+```typescript
+{
+  userId: string;              // Your unique user ID
+  profileTypeId: string;       // Assigned profile type
+  profileTypeName: string;     // Display name
+  wizardAnswers: Record;       // Your specific answers
+  derivedTags: string[];       // Aggregated interest tags
+  completedAt: string;         // Timestamp of completion
+}
+```
+
+### How Derived Tags Work
+
+Your `derivedTags` are compiled from all your wizard answers. For example:
+
+- **Question 1**: "What interests you?" → Answer: "Meditación" → Adds tag: `["Meditación"]`
+- **Question 2**: "Experience level?" → Answer: "Beginner" → Adds tag: `["Principiante"]`
+- **Final Tags**: `["Meditación", "Principiante", "Bienestar"]`
+
+These tags power the **recommendation engine** that suggests content throughout the platform.
+
+## The Recommendation Engine
+
+The platform uses your profile data to personalize content in multiple ways:
+
+### Content Matching
+
+When you view your dashboard, the system:
+
+<Steps>
+  <Step title="Loads Your Interest Tags">
+    Retrieves your `derivedTags` from your wizard profile, or falls back to your user `interests` array.
+  </Step>
+  
+  <Step title="Filters Content Library">
+    Searches all content items (articles, videos, documents) and media assets, matching their tags against your interests.
+  </Step>
+  
+  <Step title="Displays Recommendations">
+    Shows up to 6 personalized items in your "Tu Biblioteca Personalizada" section.
+  </Step>
+</Steps>
+
+### Priority Order
+
+1. **Wizard Profile Tags** (if wizard completed)
+2. **User Interests** (manual selections)
+3. **Default Tags** (fallback: "Meditación", "Bienestar")
+
+<Tip>
+The more you interact with content, the better the system understands your preferences. Click on articles and resources to build your activity history.
+</Tip>
+
+## Welcome Splash Screen
+
+After completing the wizard, you'll see a customizable splash screen with:
+
+- **Title & Message**: Personalized welcome
+- **Background**: Can be color, image, or video
+- **Duration**: Auto-redirect after configured seconds
+- **Redirect URL**: Where to send you next (typically your dashboard)
+
+### Splash Configuration
+
+```typescript
+{
+  title: string;           // "Bienvenido!"
+  message: string;         // Personalized message
+  bgType: 'color' | 'image' | 'video';
+  bgColor: string;         // Hex color
+  bgImageUrl?: string;     // Background image
+  bgVideoUrl?: string;     // Background video
+  textColor: string;       // Text overlay color
+  durationSeconds: number; // Auto-redirect time
+  redirectUrl: string;     // Next destination
+}
+```
+
+## Updating Your Profile
+
+You can update your profile information anytime:
+
+### Via Dashboard Profile Tab
+
+Access the **"Mi Perfil"** tab from your dashboard to edit:
+
+- Full name
+- Phone number
+- City of residence
+- Cover image (cycle through preset backgrounds)
+
+### Interest Management
+
+While direct interest editing isn't available in the current UI, interests are automatically updated based on:
+
+- Content you view and consume
+- Events you attend
+- Resources you download
+
+<Warning>
+Re-taking the wizard will overwrite your current profile type. If you want to refine your interests without changing your archetype, use the profile settings instead.
+</Warning>
+
+## Privacy & Data Usage
+
+Your wizard responses and profile data are used to:
+
+- Personalize your dashboard content
+- Recommend relevant events and activities
+- Segment communications from administrators
+- Track engagement for community analytics
+
+<Card title="Profile Storage" icon="database">
+  Your wizard profile is stored in `localStorage` under key `cafh_user_wizard_profiles_v1` and synced with your user record.
+</Card>
+
+## Retaking the Wizard
+
+If your interests or journey stage changes, you can retake the wizard:
+
+1. Contact your administrator to reset your wizard status
+2. Log out and log back in to trigger the wizard flow
+3. Answer questions based on your current state
+4. Your profile type and tags will be updated automatically
+
+<Note>
+Administrators can also manually adjust your profile type and interests without requiring you to retake the wizard.
+</Note>

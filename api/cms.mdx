@@ -1,0 +1,413 @@
+---
+title: CMS API
+description: Content Management System API for pages, home configuration, and menus
+---
+
+## Overview
+
+The CMS API (`db.cms`) provides methods for managing custom pages, home page configuration, navigation menus, and tracking content changes.
+
+## Change Logging
+
+### logChange
+
+Logs a CMS modification for audit trail.
+
+```typescript
+db.cms.logChange(
+  section: string,
+  action: 'Create' | 'Update' | 'Delete' | 'Rollback',
+  details: string,
+  previousState?: any
+): ChangeLog
+```
+
+<ParamField path="section" type="string" required>
+  The section being modified (e.g., "Home", "Página: Acerca de")
+</ParamField>
+
+<ParamField path="action" type="'Create' | 'Update' | 'Delete' | 'Rollback'" required>
+  Type of action performed
+</ParamField>
+
+<ParamField path="details" type="string" required>
+  Human-readable description of the change
+</ParamField>
+
+<ParamField path="previousState" type="any">
+  Optional snapshot of data before modification (for rollback)
+</ParamField>
+
+<ResponseField name="return" type="ChangeLog">
+  The created change log entry
+</ResponseField>
+
+```typescript
+db.cms.logChange(
+  'Home > Hero',
+  'Update',
+  'Actualización de título del hero',
+  previousHeroConfig
+);
+```
+
+---
+
+### getChangeLogs
+
+Retrieves all change logs (last 100 entries).
+
+```typescript
+db.cms.getChangeLogs(): ChangeLog[]
+```
+
+```typescript
+const logs = db.cms.getChangeLogs();
+console.log(`Recent changes: ${logs.length}`);
+```
+
+---
+
+## Home Configuration
+
+### getHomeConfig
+
+Retrieves the complete home page configuration.
+
+```typescript
+db.cms.getHomeConfig(): HomeConfig
+```
+
+<ResponseField name="return" type="HomeConfig">
+  Complete home page configuration including hero, search, sections, and footer
+</ResponseField>
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    const config = db.cms.getHomeConfig();
+    console.log(config.hero.title);
+    console.log(config.searchItems);
+    console.log(config.sectionOrder);
+    ```
+  </Tab>
+  <Tab title="Usage in Component">
+    ```typescript
+    const HomeView: React.FC = () => {
+      const [config, setConfig] = useState<HomeConfig>();
+      
+      useEffect(() => {
+        setConfig(db.cms.getHomeConfig());
+      }, []);
+      
+      return (
+        <div>
+          <Hero config={config?.hero} />
+          <SearchBar items={config?.searchItems} />
+        </div>
+      );
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### getFooterConfig
+
+Retrieves footer configuration from home config.
+
+```typescript
+db.cms.getFooterConfig(): FooterConfig
+```
+
+```typescript
+const footer = db.cms.getFooterConfig();
+footer.columns.forEach(col => {
+  console.log(col.title, col.links);
+});
+```
+
+---
+
+### updateHomeConfig
+
+Updates home page configuration and logs the change.
+
+```typescript
+db.cms.updateHomeConfig(config: HomeConfig): HomeConfig
+```
+
+<ParamField path="config" type="HomeConfig" required>
+  Complete HomeConfig object with updated values
+</ParamField>
+
+<Tabs>
+  <Tab title="Update Hero">
+    ```typescript
+    const config = db.cms.getHomeConfig();
+    config.hero.title = 'Nuevo Título';
+    config.hero.subtitle = 'Nueva descripción';
+    db.cms.updateHomeConfig(config);
+    ```
+  </Tab>
+  <Tab title="Update Section Order">
+    ```typescript
+    const config = db.cms.getHomeConfig();
+    config.sectionOrder = ['hero', 'threeColumns', 'blog', 'activities', 'search'];
+    db.cms.updateHomeConfig(config);
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Custom Pages
+
+### getPages
+
+Retrieves all custom pages.
+
+```typescript
+db.cms.getPages(): CustomPage[]
+```
+
+```typescript
+const pages = db.cms.getPages();
+const publishedPages = pages.filter(p => p.status === 'Published');
+```
+
+---
+
+### getPageBySlug
+
+Finds a page by its URL slug.
+
+```typescript
+db.cms.getPageBySlug(slug: string): CustomPage | undefined
+```
+
+<ParamField path="slug" type="string" required>
+  URL slug of the page (e.g., "quienes-somos")
+</ParamField>
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    const page = db.cms.getPageBySlug('quienes-somos');
+    if (page) {
+      console.log(page.title);
+      console.log(page.sections);
+    }
+    ```
+  </Tab>
+  <Tab title="Route Handler">
+    ```typescript
+    const DynamicPageView: React.FC<{ slug: string }> = ({ slug }) => {
+      const page = db.cms.getPageBySlug(slug);
+      
+      if (!page) {
+        return <NotFound />;
+      }
+      
+      return <PageRenderer sections={page.sections} />;
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### savePage
+
+Creates or updates a custom page.
+
+```typescript
+db.cms.savePage(page: CustomPage): CustomPage[]
+```
+
+<ParamField path="page" type="CustomPage" required>
+  Complete page object with id, slug, title, sections, and SEO config
+</ParamField>
+
+<ResponseField name="return" type="CustomPage[]">
+  Updated array of all pages
+</ResponseField>
+
+<Tabs>
+  <Tab title="Create New Page">
+    ```typescript
+    const newPage: CustomPage = {
+      id: 'p_' + Date.now(),
+      title: 'Nueva Página',
+      slug: 'nueva-pagina',
+      status: 'Draft',
+      sections: [
+        {
+          id: 's_hero',
+          type: 'Hero',
+          order: 0,
+          content: {
+            title: 'Bienvenido',
+            subtitle: 'Descripción'
+          }
+        }
+      ],
+      seo: {
+        title: 'Nueva Página | Cafh',
+        description: 'Descripción de la página',
+        keywords: ['cafh', 'nueva']
+      }
+    };
+    
+    db.cms.savePage(newPage);
+    ```
+  </Tab>
+  <Tab title="Update Existing Page">
+    ```typescript
+    const page = db.cms.getPageBySlug('quienes-somos');
+    if (page) {
+      page.sections[0].content.title = 'Título Actualizado';
+      db.cms.savePage(page);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### deletePage
+
+Deletes a custom page by ID.
+
+```typescript
+db.cms.deletePage(id: string): CustomPage[]
+```
+
+<ParamField path="id" type="string" required>
+  The page ID to delete
+</ParamField>
+
+```typescript
+db.cms.deletePage('p_historia_01');
+```
+
+---
+
+## Mega Menu
+
+### getMenu
+
+Retrieves the mega menu navigation structure.
+
+```typescript
+db.cms.getMenu(): MegaMenuItem[]
+```
+
+```typescript
+const menu = db.cms.getMenu();
+menu.forEach(item => {
+  console.log(item.label, item.path);
+  item.columns?.forEach(col => {
+    console.log(col.title, col.items);
+  });
+});
+```
+
+---
+
+### updateMenu
+
+Updates the mega menu structure.
+
+```typescript
+db.cms.updateMenu(menu: MegaMenuItem[]): MegaMenuItem[]
+```
+
+<ParamField path="menu" type="MegaMenuItem[]" required>
+  Complete array of menu items
+</ParamField>
+
+```typescript
+const menu = db.cms.getMenu();
+menu.push({
+  label: 'Nueva Sección',
+  path: '/nueva-seccion',
+  columns: [
+    {
+      title: 'Columna 1',
+      items: [
+        { label: 'Link 1', path: '/link1' }
+      ]
+    }
+  ]
+});
+db.cms.updateMenu(menu);
+```
+
+---
+
+### getAllAvailableRoutes
+
+Retrieves all available routes (static + dynamic pages) for menu configuration.
+
+```typescript
+db.cms.getAllAvailableRoutes(): { label: string; path: string; isDynamic?: boolean }[]
+```
+
+<ResponseField name="return" type="Array<{ label: string; path: string; isDynamic?: boolean }>">
+  Array of all available routes including static routes and dynamic custom pages
+</ResponseField>
+
+<Tabs>
+  <Tab title="Example">
+    ```typescript
+    const routes = db.cms.getAllAvailableRoutes();
+    routes.forEach(route => {
+      if (route.isDynamic) {
+        console.log(`[Dynamic] ${route.label} → ${route.path}`);
+      } else {
+        console.log(`[Static] ${route.label} → ${route.path}`);
+      }
+    });
+    ```
+  </Tab>
+  <Tab title="Menu Builder">
+    ```typescript
+    const MenuBuilder: React.FC = () => {
+      const [availableRoutes, setAvailableRoutes] = useState<any[]>([]);
+      
+      useEffect(() => {
+        setAvailableRoutes(db.cms.getAllAvailableRoutes());
+      }, []);
+      
+      return (
+        <select>
+          {availableRoutes.map(route => (
+            <option key={route.path} value={route.path}>
+              {route.label}
+            </option>
+          ))}
+        </select>
+      );
+    };
+    ```
+  </Tab>
+</Tabs>
+
+## Storage Keys
+
+- `cafh_home_config_v1` - Home page configuration
+- `cafh_custom_pages_v1` - Custom pages array
+- `cafh_menu_v1` - Mega menu structure
+- `cafh_changelog_v1` - Change logs (max 100 entries)
+
+## Related Types
+
+See [Data Types](/api/data-types) for complete interface definitions:
+- `HomeConfig`
+- `CustomPage`
+- `PageSection`
+- `MegaMenuItem`
+- `ChangeLog`
+- `SEOConfig`

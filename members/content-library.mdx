@@ -1,0 +1,357 @@
+---
+title: 'Accessing Content Library'
+description: 'Learn how to discover, browse, and consume content from the personalized library'
+icon: 'books'
+---
+
+# Content Library
+
+The CAFH Platform content library is a rich collection of articles, videos, audio recordings, and documents curated for your spiritual journey.
+
+## Content Types
+
+The platform supports multiple content formats:
+
+<CardGroup cols={2}>
+  <Card title="Articles" icon="file-lines">
+    Written content with full HTML/Markdown support. Tagged by topic and category.
+  </Card>
+  <Card title="Resources" icon="file-pdf">
+    Downloadable documents like PDFs, guides, and worksheets.
+  </Card>
+  <Card title="Videos" icon="video">
+    Recorded sessions, teachings, and visual content with embedded player.
+  </Card>
+  <Card title="Audio" icon="microphone">
+    Meditation guides, talks, and audio teachings for on-the-go listening.
+  </Card>
+</CardGroup>
+
+## Content Structure
+
+### ContentItem Data Model
+
+Each piece of content in the library follows this structure:
+
+```typescript
+interface ContentItem {
+  id: string;              // Unique identifier
+  title: string;           // Display title
+  type: 'Article' | 'Page' | 'Event' | 'Resource';
+  status: 'Published' | 'Draft';
+  author: string;          // Content creator
+  publishDate: string;     // Publication date
+  views: number;           // View count
+  tags: string[];          // Interest/topic tags
+  imageUrl?: string;       // Thumbnail or cover
+  seo?: SEOConfig;         // SEO metadata
+}
+```
+
+### MediaAsset Data Model
+
+Media files (videos, audio, documents) use this structure:
+
+```typescript
+interface MediaAsset {
+  id: string;
+  name: string;
+  type: 'image' | 'video' | 'document' | 'audio';
+  url: string;             // File location
+  size: string;            // File size (e.g., "2.4 MB")
+  dimensions?: string;     // For images/videos
+  uploadedAt: string;      // Upload date
+  tags: string[];          // Interest tags
+  folderId?: string;       // Organization folder
+}
+```
+
+## Personalized Recommendations
+
+Your dashboard shows personalized content recommendations based on your profile.
+
+### How Recommendations Work
+
+<Steps>
+  <Step title="Load Your Interests">
+    The system retrieves your interest tags from:
+    1. **Wizard Profile** (if completed) → `derivedTags`
+    2. **User Profile** (manual selection) → `interests`
+    3. **Default Fallback** → `["Meditación", "Bienestar"]`
+  </Step>
+  
+  <Step title="Aggregate Content Sources">
+    Combines items from multiple databases:
+    ```typescript
+    const contents = db.content.getAll();
+    const medias = db.media.getAll()
+      .filter(m => ['document', 'video', 'audio'].includes(m.type));
+    ```
+  </Step>
+  
+  <Step title="Tag Matching">
+    Filters content where ANY tag matches YOUR interests:
+    ```typescript
+    items.filter(item => 
+      item.tags.some(tag => userInterests.includes(tag))
+    )
+    ```
+  </Step>
+  
+  <Step title="Display Top Results">
+    Shows the top 6 matched items in your "Tu Biblioteca Personalizada" section.
+  </Step>
+</Steps>
+
+### Tag System
+
+Common content tags include:
+
+- `Meditación` - Meditation content
+- `Bienestar` - Wellness topics
+- `Estudio` - Study materials
+- `Retiro` - Retreat information
+- `Comunidad` - Community events
+- `Método` - Method teachings
+- `Principiante` - Beginner-friendly
+- `Avanzado` - Advanced content
+
+<Tip>
+The more specific your interest tags, the more targeted your recommendations will be. Complete the Journey Wizard for the best personalization.
+</Tip>
+
+## Viewing Content
+
+When you click on a recommended item, the platform opens a full-screen content viewer modal.
+
+### Content Viewer Features
+
+#### For Articles
+
+- Full-screen reading experience
+- Styled typography for readability
+- Article metadata (author, date)
+- Automatic scroll position persistence
+
+#### For Videos
+
+```html
+<video 
+  src={contentUrl} 
+  controls 
+  autoPlay 
+  className="w-full max-h-[60vh] rounded-xl"
+/>
+```
+
+- Native HTML5 video player
+- Autoplay on open
+- Full-screen support
+- Playback controls
+
+#### For Audio
+
+- Clean audio player interface
+- Play/pause controls
+- Progress bar
+- Volume control
+- Playback speed options
+
+#### For Documents (PDFs)
+
+```html
+<iframe 
+  src={documentUrl} 
+  className="w-full h-[60vh] rounded-xl"
+  title="Document Viewer"
+/>
+```
+
+- Embedded PDF viewer
+- Zoom and scroll support
+- Download option
+- Page navigation
+
+### Modal Controls
+
+<AccordionGroup>
+  <Accordion title="Close Button" icon="xmark">
+    Click the X button in the top-right corner to close the modal and return to your dashboard.
+  </Accordion>
+  
+  <Accordion title="Background Click" icon="hand-pointer">
+    Click outside the content viewer (on the dark backdrop) to close.
+  </Accordion>
+  
+  <Accordion title="ESC Key" icon="keyboard">
+    Press the ESC key for quick modal dismissal (if implemented).
+  </Accordion>
+</AccordionGroup>
+
+## Analytics & Tracking
+
+Every time you open content, the platform automatically tracks your interaction.
+
+### Consumption Tracking
+
+When you click on content:
+
+```typescript
+db.analytics.trackConsumption({
+  assetId: item.originalId,
+  assetName: item.title,
+  assetType: item.type,
+  tags: item.tags
+});
+```
+
+### What Gets Tracked
+
+<Steps>
+  <Step title="Content Interaction Created">
+    A `ContentInteraction` record is created with:
+    - Your user ID (if logged in)
+    - Asset details (ID, name, type)
+    - Timestamp of interaction
+    - Content tags
+  </Step>
+  
+  <Step title="View Count Incremented">
+    The content's `views` counter increases by 1.
+  </Step>
+  
+  <Step title="History Updated">
+    Your activity history is updated with the interaction for display in the Historial tab.
+  </Step>
+  
+  <Step title="Recommendations Refined">
+    Future recommendations are adjusted based on your consumption patterns.
+  </Step>
+</Steps>
+
+<Note>
+All tracking is anonymous and used only to improve your experience. View counts help administrators understand popular content.
+</Note>
+
+## Content Organization
+
+Content in the library is organized by several attributes:
+
+### By Type
+
+- **Articles**: Written content for reading
+- **Resources**: Downloadable materials
+- **Videos**: Visual content
+- **Audio**: Audio-only content
+
+### By Tags
+
+Content can have multiple tags for cross-categorization:
+
+```typescript
+tags: ["Meditación", "Principiante", "Bienestar"]
+```
+
+This allows one piece of content to appear in multiple recommendation contexts.
+
+### By Status
+
+- **Published**: Visible to members
+- **Draft**: Hidden, work in progress
+
+<Warning>
+Only content with `status: 'Published'` appears in member recommendations. Draft content is visible only to administrators.
+</Warning>
+
+## Content Catalog Integration
+
+The platform also includes a separate **Content Catalog** system for structured content management:
+
+### Catalog Features
+
+- Detailed metadata (title, description, duration)
+- Profile targeting (content specific to profile types)
+- Access control (public vs. member-only)
+- Featured content highlighting
+- Custom ordering
+
+### Catalog Item Structure
+
+```typescript
+interface ContentCatalogItem {
+  id: string;
+  title: string;
+  description: string;
+  type: 'PDF' | 'Audio' | 'Video' | 'Article' | 'External';
+  mediaAssetId?: string;      // Links to Media Library
+  externalUrl?: string;       // For external content
+  thumbnailUrl?: string;
+  duration?: string;          // "15 min", "1 hour"
+  tags: string[];
+  targetProfiles: string[];   // Profile type IDs
+  isKitItem: boolean;         // Part of welcome kit?
+  access: 'public' | 'member';
+  featured: boolean;
+  order: number;
+  publishedAt: string;
+  status: 'draft' | 'published';
+}
+```
+
+<Card title="Kit Items" icon="gift">
+  **Profile Kit Items** are special curated resources automatically recommended to new members based on their wizard profile type.
+</Card>
+
+## Search & Discovery
+
+While direct search isn't visible in the member dashboard UI, the platform includes robust search capabilities:
+
+### Content Search Function
+
+```typescript
+db.content.search(query: string, type?: string)
+```
+
+**Parameters:**
+- `query`: Text to search in titles and tags
+- `type`: Optional content type filter
+
+**Example:**
+```typescript
+// Search for meditation content
+const results = db.content.search("meditación", "Article");
+
+// Search across all types
+const allResults = db.content.search("bienestar");
+```
+
+### Media Search Function
+
+```typescript
+db.media.search(query: string, type?: string)
+```
+
+**Example:**
+```typescript
+// Find all meditation videos
+const videos = db.media.search("meditación", "video");
+
+// Find audio recordings
+const audio = db.media.search("", "audio");
+```
+
+<Tip>
+Administrators can expose search functionality in custom pages or build dedicated library browsing interfaces using these search functions.
+</Tip>
+
+## Offline Access
+
+The platform stores content metadata locally for quick access:
+
+- **Content Index**: Cached in `localStorage`
+- **Media Metadata**: Available offline
+- **Actual Media Files**: Require internet connection
+
+<Warning>
+While content metadata is available offline, streaming video/audio and viewing documents requires an active internet connection.
+</Warning>

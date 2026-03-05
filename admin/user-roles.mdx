@@ -1,0 +1,463 @@
+---
+title: 'User Role Management'
+description: 'Configure user roles and permissions for admin access control'
+icon: 'shield'
+---
+
+The User Role system controls access to admin features, content management, and sensitive operations across the CAFH Platform.
+
+## Role Hierarchy
+
+The platform uses a tiered role system (`types.ts:14-20`):
+
+```typescript
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  EDITOR = 'EDITOR',
+  MEMBER = 'MEMBER',
+  GUEST = 'GUEST'
+}
+```
+
+## Role Permissions
+
+<Tabs>
+  <Tab title="SUPER_ADMIN">
+    **Full platform access**
+    
+    ✅ All CMS operations (create, edit, delete)
+    
+    ✅ All CRM operations including bulk actions
+    
+    ✅ User management (create, edit roles, delete)
+    
+    ✅ Site settings and configuration
+    
+    ✅ SMTP and integration settings
+    
+    ✅ View all analytics and reports
+    
+    ✅ Access change logs and audit trails
+    
+    ✅ Execute automation workflows
+  </Tab>
+  
+  <Tab title="ADMIN">
+    **Administrative access**
+    
+    ✅ Create and edit content
+    
+    ✅ Manage contacts and lists
+    
+    ✅ Send email campaigns
+    
+    ✅ View analytics
+    
+    ✅ Upload to media library
+    
+    ⚠️ Cannot delete users
+    
+    ⚠️ Cannot modify site settings
+    
+    ❌ Cannot access SMTP configuration
+  </Tab>
+  
+  <Tab title="EDITOR">
+    **Content management**
+    
+    ✅ Create and edit pages
+    
+    ✅ Create and edit blog posts
+    
+    ✅ Upload media assets
+    
+    ✅ View published content
+    
+    ⚠️ Can only edit own content
+    
+    ❌ No CRM access
+    
+    ❌ Cannot send emails
+    
+    ❌ No analytics access
+  </Tab>
+  
+  <Tab title="MEMBER">
+    **Member portal access**
+    
+    ✅ View member dashboard
+    
+    ✅ Access member-only content
+    
+    ✅ Register for events
+    
+    ✅ Download resources
+    
+    ✅ Update own profile
+    
+    ❌ No admin panel access
+  </Tab>
+  
+  <Tab title="GUEST">
+    **Public access only**
+    
+    ✅ View public pages
+    
+    ✅ Read blog posts
+    
+    ✅ Subscribe to newsletter
+    
+    ❌ No login access
+    
+    ❌ No member features
+  </Tab>
+</Tabs>
+
+## User Structure
+
+User accounts include role assignment (`types.ts:22-36`):
+
+```typescript
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatarUrl: string;
+  tenantId: string;
+  interests: string[];
+  joinedDate: string;
+  coverUrl?: string;
+  phone?: string;
+  city?: string;
+}
+```
+
+## Admin User Management
+
+Admin-specific user data (`types.ts:585-593`):
+
+```typescript
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  lastLogin?: string;
+  createdAt: string;
+}
+```
+
+## Creating Admin Users
+
+<Steps>
+  <Step title="Access User Management">
+    Navigate to **Settings → Users** (SUPER_ADMIN only)
+  </Step>
+  <Step title="Click Add User">
+    Open the new user creation form
+  </Step>
+  <Step title="Enter Details">
+    - Full name
+    - Email address (must be unique)
+    - Assign role from dropdown
+  </Step>
+  <Step title="Set Password">
+    Generate secure password or let user set on first login
+  </Step>
+  <Step title="Save">
+    User is created and can log in immediately
+  </Step>
+</Steps>
+
+<Warning>
+Only SUPER_ADMIN users can create other admin accounts. This prevents privilege escalation.
+</Warning>
+
+## Authentication System
+
+The platform uses a simple authentication system (`storage.ts:303-348`):
+
+### Login Function
+
+```javascript
+db.auth.login(email, password)
+// Returns User object if successful, null if failed
+```
+
+### Default Accounts
+
+For development/demo:
+
+```javascript
+// Admin account
+email: 'admin@cafh.cl'
+password: 'admin123'
+role: SUPER_ADMIN
+
+// Member account
+email: 'miembro@cafh.cl'
+password: 'miembro123'
+role: MEMBER
+```
+
+<Warning>
+Change default passwords immediately in production. Use strong, unique passwords for all admin accounts.
+</Warning>
+
+## Role-Based UI
+
+The interface adapts based on user role:
+
+### Admin Panel Visibility
+
+```jsx
+{user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN ? (
+  <AdminPanel />
+) : null}
+```
+
+### Feature Gating
+
+```jsx
+{user.role === UserRole.SUPER_ADMIN && (
+  <button onClick={deleteSensitiveData}>
+    Delete System Data
+  </button>
+)}
+```
+
+### CRM Access Check
+
+```jsx
+const canAccessCRM = [UserRole.SUPER_ADMIN, UserRole.ADMIN].includes(user.role);
+
+if (canAccessCRM) {
+  // Show CRM features
+}
+```
+
+## Permission Checking
+
+Implement permission checks before sensitive operations:
+
+```javascript
+const hasPermission = (user, requiredRole) => {
+  const hierarchy = {
+    GUEST: 0,
+    MEMBER: 1,
+    EDITOR: 2,
+    ADMIN: 3,
+    SUPER_ADMIN: 4
+  };
+  
+  return hierarchy[user.role] >= hierarchy[requiredRole];
+};
+
+// Usage
+if (hasPermission(currentUser, 'ADMIN')) {
+  // Execute admin operation
+} else {
+  alert('Insufficient permissions');
+}
+```
+
+## Contact System Roles
+
+Contacts can have system roles assigned (`types.ts:275`):
+
+```typescript
+interface Contact {
+  // ...
+  role: string; // Can be 'Admin', 'Tenant', 'User', 'Lead', etc.
+}
+```
+
+### System Role Badge
+
+Contacts with admin/user roles show a badge (`AdminViews.tsx:336-343`):
+
+```jsx
+{contact.role?.toLowerCase() === 'admin' && (
+  <span className="bg-cafh-indigo text-white text-[10px] px-2 py-0.5 rounded-md uppercase">
+    <Shield size={10} /> Sistema
+  </span>
+)}
+```
+
+## Session Management
+
+User sessions are stored in localStorage (`storage.ts:318-348`):
+
+### Get Current User
+
+```javascript
+const currentUser = db.auth.getCurrentUser();
+// Returns User object or null if not logged in
+```
+
+### Logout
+
+```javascript
+db.auth.logout();
+// Clears session from localStorage
+```
+
+### Update Current User
+
+```javascript
+db.auth.updateCurrentUser({
+  name: "New Name",
+  avatarUrl: "/media/new-avatar.jpg"
+});
+```
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Password Policy">
+    - Minimum 8 characters
+    - Require uppercase, lowercase, number
+    - Enforce password changes every 90 days
+    - Prevent password reuse (last 5)
+    - Lock accounts after 5 failed attempts
+  </Accordion>
+
+  <Accordion title="Role Assignment">
+    - Use principle of least privilege
+    - Review permissions quarterly
+    - Remove access when roles change
+    - Document role assignments
+    - Audit admin actions regularly
+  </Accordion>
+
+  <Accordion title="Session Security">
+    - Implement session timeout (30 minutes)
+    - Force re-authentication for sensitive ops
+    - Use secure, httpOnly cookies in production
+    - Log all admin actions
+    - Monitor for suspicious activity
+  </Accordion>
+
+  <Accordion title="Multi-Factor Authentication">
+    - Enable 2FA for all admin accounts
+    - Use authenticator apps (not SMS)
+    - Provide backup codes
+    - Require 2FA for password resets
+  </Accordion>
+</AccordionGroup>
+
+## Change Logging
+
+All admin actions are logged with user attribution (`types.ts:77-86`):
+
+```typescript
+export interface ChangeLog {
+  userId: string;
+  userName: string;
+  section: string;
+  action: 'Create' | 'Update' | 'Delete' | 'Rollback';
+  timestamp: string;
+  details: string;
+}
+```
+
+View change logs at **CMS → History** to audit:
+- Who made changes
+- What was changed
+- When changes occurred
+- Previous state (for rollback)
+
+## Multi-Tenancy
+
+The platform supports multi-tenant deployments (`types.ts:3-11`):
+
+```typescript
+export interface Tenant {
+  id: string;
+  name: string;
+  domain: string;
+  theme: {
+    primaryColor: string;
+    logoUrl: string;
+  };
+}
+```
+
+Users are assigned to tenants via `tenantId`, isolating data and configurations.
+
+## Access Control Examples
+
+### CMS Access
+
+```javascript
+// Only admins and editors can create content
+const canCreateContent = [
+  UserRole.SUPER_ADMIN,
+  UserRole.ADMIN,
+  UserRole.EDITOR
+].includes(user.role);
+```
+
+### CRM Access
+
+```javascript
+// Only admins can access CRM
+const canAccessCRM = [
+  UserRole.SUPER_ADMIN,
+  UserRole.ADMIN
+].includes(user.role);
+```
+
+### Settings Access
+
+```javascript
+// Only SUPER_ADMIN can modify settings
+const canModifySettings = user.role === UserRole.SUPER_ADMIN;
+```
+
+## Deactivating Users
+
+Safely remove user access:
+
+<Steps>
+  <Step title="Set Inactive Status">
+    Change `isActive` to `false` instead of deleting
+  </Step>
+  <Step title="Preserve Data">
+    Keep user record for audit trail and change logs
+  </Step>
+  <Step title="Revoke Sessions">
+    Clear all active sessions for the user
+  </Step>
+  <Step title="Document Reason">
+    Add note explaining deactivation
+  </Step>
+</Steps>
+
+```javascript
+const deactivateUser = (userId) => {
+  const user = db.auth.getAllUsers().find(u => u.id === userId);
+  if (user) {
+    user.isActive = false;
+    db.auth.updateUser(user);
+  }
+};
+```
+
+<Note>
+Deactivated users cannot log in but their historical data remains intact for reporting and audit purposes.
+</Note>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="CRM System" icon="users" href="/admin/crm">
+    Contact management and permissions
+  </Card>
+  <Card title="CMS Overview" icon="layout" href="/admin/cms-overview">
+    Content management permissions
+  </Card>
+</CardGroup>

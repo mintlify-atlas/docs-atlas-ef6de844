@@ -1,0 +1,191 @@
+---
+title: 'Email Campaigns'
+description: 'Create and send targeted email campaigns to your community'
+---
+
+# Email Campaigns
+
+Create and send professional email campaigns to engage your community. Campaigns support HTML content, audience segmentation, and comprehensive analytics.
+
+## Creating a Campaign
+
+Campaigns are managed from **CRM → Campaigns** in the admin dashboard.
+
+<Steps>
+  <Step title="Access Campaign Orchestrator">
+    Click the **Campaigns** button in the CRM toolbar to open the campaign management interface.
+  </Step>
+
+  <Step title="Create New Campaign">
+    Click **+ Nueva Campaña** to start:
+    
+    - **Name**: Internal campaign identifier
+    - **Subject**: Email subject line shown to recipients
+    - **Content**: HTML email body (use the HTML editor)
+  </Step>
+
+  <Step title="Configure Targeting">
+    Choose recipient strategy:
+    
+    - **All**: Send to all contacts in the CRM
+    - **Subscribed**: Only contacts with status `Subscribed`
+    - **List**: Target a specific contact list/segment
+    
+    The system will display the recipient count before sending.
+  </Step>
+
+  <Step title="Test Campaign">
+    Before sending to your audience:
+    
+    1. Enter a test email address
+    2. Click **Enviar prueba**
+    3. Review the email in your inbox
+    
+    Campaign status will update to `Testing`.
+  </Step>
+
+  <Step title="Send or Schedule">
+    - **Send Now**: Campaign goes to the email queue immediately (status: `Sent`)
+    - **Schedule**: Set a future date/time (status: `Scheduled`)
+    
+    <Warning>
+      Sent campaigns cannot be edited or cancelled. Always test first.
+    </Warning>
+  </Step>
+</Steps>
+
+## Campaign States
+
+| Status | Description |
+|--------|-------------|
+| `Draft` | Campaign is being created, not sent |
+| `Testing` | Test email has been sent |
+| `Scheduled` | Queued for future delivery |
+| `Sent` | Campaign has been dispatched |
+
+## HTML Email Content
+
+The content field supports full HTML:
+
+```html
+<h1>Welcome to Our Community</h1>
+<p>Dear member,</p>
+<p>We're excited to share...</p>
+<a href="https://yoursite.com">Visit our website</a>
+```
+
+### Editor Mode vs Preview
+
+Toggle between:
+- **Editor HTML**: Raw HTML input
+- **Vista Previa**: Rendered preview
+
+## Campaign Analytics
+
+Once sent, view metrics in the campaign card:
+
+- **Sent**: Total emails delivered
+- **Opened**: Contacts who opened the email
+- **Clicked**: Contacts who clicked links
+- **Bounced**: Failed deliveries
+
+Metrics are tracked via the `EmailLog` system (see `admin/AdminViews.tsx:lines 288-298`).
+
+## Email Queue System
+
+Campaigns are processed through a **rate-limited queue** to comply with SMTP provider limits.
+
+<Info>
+  The queue processor runs every 30 seconds and respects the `MAX_EMAILS_PER_HOUR` setting. See [SMTP Configuration](/admin/smtp-configuration) for details.
+</Info>
+
+### Queue Status
+
+Monitor queue health from the CRM dashboard:
+
+```typescript
+interface QueueStatus {
+  pending: number;      // Emails waiting
+  sent: number;         // Successfully delivered
+  failed: number;       // Errors
+  sentCountThisHour: number;
+  limit: number;        // MAX_EMAILS_PER_HOUR
+}
+```
+
+The dashboard displays this in real-time (refreshed every 10 seconds).
+
+## Campaign Data Structure
+
+From `types.ts:lines 358-377`:
+
+```typescript
+interface Campaign {
+  id: string;
+  name: string;          // Internal campaign name
+  subject: string;
+  content: string;       // HTML content
+  status: 'Draft' | 'Scheduled' | 'Sent' | 'Testing';
+  recipientType: 'all' | 'subscribed' | 'list';
+  listId?: string;
+  recipientCount: number;
+  createdAt: string;
+  sentAt?: string;
+  scheduledAt?: string;
+  testEmail?: string;
+  metrics: {
+    sent: number;
+    opened: number;
+    clicked: number;
+    bounced: number;
+  };
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Subject Lines" icon="envelope">
+    Keep subject lines under 50 characters for mobile compatibility.
+  </Card>
+  
+  <Card title="Test Before Sending" icon="flask">
+    Always send test emails to verify formatting and links.
+  </Card>
+  
+  <Card title="Segment Your Audience" icon="users">
+    Use lists and tags to target relevant subscribers.
+  </Card>
+  
+  <Card title="Monitor Metrics" icon="chart-line">
+    Track open rates to improve future campaigns.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Campaign Stuck in Queue
+
+Check queue status:
+- If `sentCountThisHour` equals `limit`, wait for the hourly reset
+- If `pending` is high, verify SMTP configuration
+
+### High Bounce Rate
+
+Bounces are logged with error messages in `EmailLog`. Common causes:
+- Invalid email addresses
+- SMTP authentication failures
+- Recipient server rejection
+
+### Metrics Not Tracking
+
+Open/click tracking requires:
+- HTML content (not plain text)
+- Valid recipient engagement
+- EmailLog status updates to `Opened` or `Clicked`
+
+## Related Documentation
+
+- [Automation Workflows](/admin/automation-workflows) - Trigger campaigns automatically
+- [SMTP Configuration](/admin/smtp-configuration) - Email server setup
+- [CRM Contacts](/member/crm) - Managing your contact database

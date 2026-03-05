@@ -1,0 +1,382 @@
+---
+title: Content Performance
+description: Track and analyze content performance metrics including views, engagement, and user interactions
+icon: file-chart-line
+---
+
+Content performance tracking helps you understand which articles, resources, and pages resonate most with your audience.
+
+## Content Tracking Overview
+
+The platform automatically tracks performance for all content types:
+
+<CardGroup cols={4}>
+  <Card title="Articles" icon="file-text">
+    Blog posts and long-form content
+  </Card>
+  <Card title="Resources" icon="book">
+    Downloadable guides and materials
+  </Card>
+  <Card title="Pages" icon="file">
+    Custom WYSIWYG pages
+  </Card>
+  <Card title="Events" icon="calendar">
+    Calendar events and activities
+  </Card>
+</CardGroup>
+
+## Content Item Schema
+
+Each content item tracked in the system:
+
+```typescript
+interface ContentItem {
+  id: string;
+  title: string;
+  type: 'Article' | 'Page' | 'Event' | 'Resource';
+  status: 'Published' | 'Draft';
+  author: string;
+  publishDate: string;
+  views: number;              // Auto-incremented on access
+  tags: string[];
+  imageUrl?: string;
+  seo?: SEOConfig;
+}
+```
+
+## View Tracking
+
+### Automatic View Increment
+
+Views are automatically tracked when content is accessed:
+
+```typescript
+db.analytics.trackConsumption({
+  userId: currentUser?.id,
+  assetId: content.id,
+  assetName: content.title,
+  assetType: content.type,
+  tags: content.tags
+});
+```
+
+This triggers:
+1. **Interaction log created** in `ContentInteraction` table
+2. **View count incremented** on the content item
+3. **User activity added** to member's history (if logged in)
+
+### View Increment Logic
+
+```typescript
+if (interaction.assetType === 'Article' || interaction.assetType === 'Resource' || 
+    interaction.assetType === 'Page' || interaction.assetType === 'Event') {
+  const currentContent = db.content.getAll();
+  const contentIndex = currentContent.findIndex(c => c.id === interaction.assetId);
+  if (contentIndex !== -1) {
+    currentContent[contentIndex].views = (currentContent[contentIndex].views || 0) + 1;
+    localStorage.setItem(KEYS.CONTENT, JSON.stringify(currentContent));
+  }
+}
+```
+
+<Note>
+  Views are incremented on every access, including repeat views by the same user. For unique visitor tracking, implement deduplication logic based on userId and date.
+</Note>
+
+## Top Content Widget
+
+The dashboard displays top-performing content:
+
+```typescript
+const topContent = [...allContent]
+  .sort((a, b) => (b.views || 0) - (a.views || 0))
+  .slice(0, 5);
+```
+
+**Display includes:**
+- Ranking badge (#1, #2, etc.)
+- Content title
+- Total view count
+- Percentage bar (relative to top item)
+- Content type badge with color coding
+
+### Type Color Coding
+
+- **Article**: Blue badge (`bg-blue-50 text-blue-600`)
+- **Resource**: Green badge (`bg-green-50 text-green-600`)
+- **Page**: Purple badge (`bg-purple-50 text-purple-600`)
+
+## Content Interaction Analytics
+
+Deeper analytics tracked via `ContentInteraction` records:
+
+```typescript
+interface ContentInteraction {
+  id: string;
+  userId?: string;        // Optional (null for anonymous)
+  assetId: string;
+  assetName: string;
+  assetType: string;
+  tags: string[];         // Associated tags for recommendation
+  timestamp: string;      // ISO 8601 datetime
+}
+```
+
+### Interaction History Limit
+
+To prevent storage overflow:
+
+```typescript
+// Limit array to prevent localstorage crash
+const updated = [newInteraction, ...history].slice(0, 5000);
+localStorage.setItem(KEYS.CONTENT_INTERACTIONS, JSON.stringify(updated));
+```
+
+## Tag-Based Performance
+
+Analyze content performance by tag:
+
+### Popular Tags
+
+Identify which tags generate most engagement:
+
+```typescript
+const allTags = new Set<string>();
+content.forEach(item => item.tags?.forEach(tag => allTags.add(tag)));
+
+// Count interactions per tag
+const tagCounts = {};
+interactions.forEach(int => {
+  int.tags.forEach(tag => {
+    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+  });
+});
+```
+
+### Tag Association
+
+Tags are used for:
+- **Content recommendation**: "Similar content" suggestions
+- **Profile personalization**: Matching content to user profile tags
+- **Campaign targeting**: Sending content aligned with member interests
+
+<Accordion title="Understanding Tag Strategy">
+  Use consistent, descriptive tags across content:
+  - **Type tags**: "Meditación", "Estudio", "Retiros"
+  - **Level tags**: "Principiante", "Avanzado"
+  - **Theme tags**: "Mística", "Filosofía", "Bienestar"
+  
+  Members' profile tags (from wizard answers) match against content tags to deliver personalized recommendations.
+</Accordion>
+
+## SEO Performance Tracking
+
+Each content item can have SEO configuration:
+
+```typescript
+interface SEOConfig {
+  title: string;
+  description: string;
+  keywords: string[];
+  ogImage?: string;
+  schemaType?: string;  // 'Article', 'Event', 'Organization'
+}
+```
+
+Use this for:
+- Meta tag generation
+- Open Graph optimization
+- Schema.org structured data
+- Google Analytics tracking
+
+## Content Status & Publishing
+
+### Status Types
+
+<Steps>
+  <Step title="Draft">
+    Content is being created or edited. Not visible to public. Only admins can view.
+  </Step>
+  <Step title="Published">
+    Content is live and visible according to its access settings (public or member-only).
+  </Step>
+</Steps>
+
+### Publication Workflow
+
+```typescript
+// Publishing content
+const content: ContentItem = {
+  id: generateId(),
+  title: 'New Article',
+  type: 'Article',
+  status: 'Draft',          // Start as draft
+  author: currentUser.name,
+  publishDate: new Date().toISOString(),
+  views: 0,
+  tags: ['Meditación', 'Bienestar']
+};
+
+// Save to draft
+db.content.save(content);
+
+// When ready to publish
+content.status = 'Published';
+db.content.save(content);
+```
+
+## Media Asset Performance
+
+Media library assets are tracked separately:
+
+```typescript
+interface MediaAsset {
+  id: string;
+  name: string;
+  type: 'image' | 'video' | 'document' | 'audio';
+  url: string;
+  size: string;
+  dimensions?: string;
+  uploadedAt: string;
+  tags: string[];
+  folderId?: string;
+}
+```
+
+**Media types tracked:**
+- Images (hero images, thumbnails)
+- Videos (embedded or hosted)
+- Documents (PDFs, guides)
+- Audio files (podcasts, meditations)
+
+### Media Search & Filter
+
+```typescript
+db.media.search(query: string, type?: string)
+```
+
+Searches by:
+- File name
+- Associated tags
+- Content type filter
+
+## Performance Reporting
+
+### Export Content Performance
+
+Export performance data via browser console:
+
+```javascript
+// Get all content with views
+const content = db.content.getAll()
+  .map(item => ({
+    title: item.title,
+    type: item.type,
+    views: item.views || 0,
+    tags: item.tags,
+    publishDate: item.publishDate
+  }))
+  .sort((a, b) => b.views - a.views);
+
+console.table(content);
+```
+
+### Interaction Export
+
+```javascript
+// Export all interactions with timestamps
+const interactions = db.analytics.getInteractions();
+const csv = interactions.map(i => 
+  `${i.timestamp},${i.assetName},${i.assetType},${i.userId || 'anonymous'}`
+).join('\n');
+
+console.log('timestamp,content,type,user\n' + csv);
+```
+
+## Content Access Control
+
+Content catalog items have access settings:
+
+```typescript
+interface ContentCatalogItem {
+  access: 'public' | 'member';  // Who can view
+  featured: boolean;             // Show on homepage
+  targetProfiles: string[];      // Profile type IDs
+}
+```
+
+**Access levels:**
+- **Public**: Anyone can view (logged in or not)
+- **Member**: Requires login and active account
+
+**Targeting:**
+- Content can target specific profile types (Contemplativo, Comunitario, etc.)
+- Shown preferentially to members with matching profiles
+
+## Content Search & Discovery
+
+The platform provides search functionality:
+
+```typescript
+db.content.search(query: string, type?: string)
+```
+
+**Search criteria:**
+- Title match (case-insensitive)
+- Tag match (partial or full)
+- Type filter (Article, Resource, Page, Event)
+
+### Search Implementation
+
+```typescript
+search: (query: string, type?: string) => {
+  let items: ContentItem[] = JSON.parse(localStorage.getItem(KEYS.CONTENT) || '[]');
+  if (type) items = items.filter(i => i.type === type);
+  if (query) {
+    items = items.filter(i => 
+      i.title.toLowerCase().includes(query.toLowerCase()) || 
+      i.tags.some(t => t.toLowerCase().includes(query.toLowerCase()))
+    );
+  }
+  return items;
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Optimize High-Performing Content">
+    Identify top 20% of content by views and update regularly. Add internal links, refresh images, and expand with related topics.
+  </Accordion>
+  
+  <Accordion title="Revise Low-Performing Content">
+    For content with < 50 views after 90 days:
+    - Update title for better SEO
+    - Add more relevant tags
+    - Feature in newsletter or homepage
+    - Consider archiving if truly not valuable
+  </Accordion>
+  
+  <Accordion title="Tag Consistently">
+    Use a standardized tag taxonomy. Review tag performance monthly and merge similar tags (e.g., "Meditacion" and "Meditación").
+  </Accordion>
+  
+  <Accordion title="Monitor by Content Type">
+    Different types perform differently:
+    - **Articles**: Average 200-500 views
+    - **Resources**: Average 500-1000 views (high retention value)
+    - **Events**: Spikes around event date
+    - **Pages**: Depends on navigation prominence
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Analytics Dashboard" icon="chart-bar" href="/admin/analytics-dashboard">
+    View overall platform performance metrics
+  </Card>
+  <Card title="Engagement Metrics" icon="chart-line" href="/admin/engagement-metrics">
+    Understand member engagement patterns
+  </Card>
+</CardGroup>
